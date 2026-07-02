@@ -60,7 +60,10 @@ app.add_middleware(SlowAPIMiddleware)
 # Mở CORS để Frontend (React) gọi được API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Hoặc thay bằng ["http://localhost:5173"] để bảo mật hơn
+    allow_origins=[
+        "http://localhost:5173",
+        "https://tho-hoan-tien.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
