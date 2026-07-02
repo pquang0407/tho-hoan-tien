@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React from "react";
 import "../assets/styles/Login.css";
-
+import FloatingCarrots from "../components/FloatingCarrots";
 import { auth } from "../firebase";
 
 import {
@@ -11,49 +11,36 @@ import {
 const Login = ({ changePage, setIsLoggedIn }) => {
     const handleGoogleLogin = async () => {
         try {
-
             const provider = new GoogleAuthProvider();
 
-            const result = await signInWithPopup(auth, provider);
+            await signInWithPopup(auth, provider);
 
-            const user = result.user;
-
-            localStorage.setItem("userEmail", user.email || "");
-            localStorage.setItem("displayName", user.displayName || "");
-            localStorage.setItem("photoURL", user.photoURL || "");
-
-            setIsLoggedIn(true);
-
-            // Quay về trang About
             changePage("about");
 
         } catch (error) {
-
             console.error(error);
-
             alert("Đăng nhập thất bại!");
-
         }
     };
 
     return (
-        <div className="login-container">
+        <div className="login-container cute-theme">
             {/* --- NỬA TRÁI: BANNER THÔNG ĐIỆP --- */}
             <div className="login-left">
                 <div className="login-brand">
-                    <span className="brand-icon">🐰</span>
+                    <span className="brand-icon floating">🐰</span>
                     <div className="brand-text">
                         <strong>Thỏ – hoàn tiền</strong>
                         <span>Đăng nhập nhanh để lưu cà rốt</span>
                     </div>
                 </div>
 
-                <div className="login-hero-text">
+                <div className="login-hero-text slide-right">
                     <h1>Đăng nhập một lần,<br />theo dõi hoa hồng dễ hơn mỗi ngày.</h1>
-                    <p>Chỉ cần email để nhận mã OTP. Không cần mật khẩu, không mất thời gian làm quen lại từ đầu.</p>
+                    <p>Chỉ cần gmail. Không cần mật khẩu, không mất thời gian làm quen lại từ đầu.</p>
                 </div>
 
-                <div className="login-quote">
+                <div className="login-quote floating-slow">
                     <p>“Hoa hồng được cộng dồn từ những chia sẻ đều đặn, và chúng tôi muốn đồng hành cùng bạn trên chặng đường nhặt cà rốt đó.”</p>
                     <span className="quote-author">THỎ - HOÀN TIỀN</span>
                 </div>
@@ -63,19 +50,19 @@ const Login = ({ changePage, setIsLoggedIn }) => {
             <div className="login-right">
                 <div className="back-link-wrapper">
                     {/* Quay lại About */}
-                    <a href="#" className="back-link" onClick={(e) => { e.preventDefault(); changePage('about'); }}>
-                        ← Về trang giới thiệu
+                    <a href="#" className="back-link bubbly-hover" onClick={(e) => { e.preventDefault(); changePage('about'); }}>
+                        <span className="back-arrow">←</span> Về trang giới thiệu
                     </a>
                 </div>
 
-                <div className="login-card">
+                <div className="login-card slide-up">
                     <div className="login-header">
-                        <h2>Chào mừng bạn quay lại 🌸</h2>
-                        <p>Đăng nhập bằng Google để tiếp tục.</p>
+                        <h2>Đăng nhập với Google 🌸</h2>
+                        <p>Chỉ cần một lần nhấn để bắt đầu nhặt cà rốt.</p>
                     </div>
 
-                    <button className="btn-google full-width" type="button" onClick={handleGoogleLogin}>
-                        <svg className="google-icon" width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+                    <button className="btn-google full-width bubbly-hover" type="button" onClick={handleGoogleLogin}>
+                        <svg className="google-icon bouncing-soft" width="22" height="22" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
                             <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
                             <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
                             <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
@@ -85,6 +72,9 @@ const Login = ({ changePage, setIsLoggedIn }) => {
                     </button>
                 </div>
             </div>
+            <>
+                <FloatingCarrots />
+            </>
         </div>
     );
 };

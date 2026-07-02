@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { auth } from "../firebase";
 import '../assets/styles/Dashboard.css';
+import FloatingCarrots from "../components/FloatingCarrots";
 
-const Dashboard = ({ changePage }) => {
+const Dashboard = ({ changePage, user }) => {
     const [activeTab, setActiveTab] = useState('shopee');
     const [linkInput, setLinkInput] = useState('');
     const [isConverting, setIsConverting] = useState(false);
@@ -13,29 +14,30 @@ const Dashboard = ({ changePage }) => {
     const handleConvert = async () => {
         if (!linkInput) return;
 
-        setIsConverting(true);
-        setShowResult(false);
-        setError("");
-
-        const user = auth.currentUser;
-
         if (!user) {
             alert("Vui lòng đăng nhập");
             return;
         }
 
+        setIsConverting(true);
+        setShowResult(false);
+        setError("");
+
         try {
-            const res = await fetch("https://tho-hoan-tien-backend.onrender.com/api/convert", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    user_email: user.email,
-                    original_url: linkInput,
-                    platform: activeTab,
-                })
-            });
+            const res = await fetch(
+                "https://tho-hoan-tien-backend.onrender.com/api/convert",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        user_email: user.email,
+                        original_url: linkInput,
+                        platform: activeTab,
+                    }),
+                }
+            );
 
             const data = await res.json();
 
@@ -45,9 +47,14 @@ const Dashboard = ({ changePage }) => {
 
             setResult(data);
             setShowResult(true);
-
         } catch (err) {
-            setError(err.message);
+            console.error(err);
+
+            if (err.message === "Failed to fetch") {
+                setError("🐰 Gãy răng thỏ rồi! Link không được hoàn tiền.");
+            } else {
+                setError(`🐰 Gãy răng thỏ rồi! ${err.message}`);
+            }
         } finally {
             setIsConverting(false);
         }
@@ -199,7 +206,13 @@ const Dashboard = ({ changePage }) => {
                         </div>
                     </div>
                 </div>
+
             )}
+            <>
+                <FloatingCarrots />
+
+                {/* Toàn bộ giao diện */}
+            </>
         </div>
     );
 };

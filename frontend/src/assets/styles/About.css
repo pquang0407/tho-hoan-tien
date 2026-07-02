@@ -732,3 +732,9 @@ h4 {
         font-size: 32px;
     }
 }
+
+.hero-rabbit {
+    width: 360px;
+    transform: scale(1.15);
+    mix-blend-mode: multiply;
+}

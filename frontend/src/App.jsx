@@ -1,33 +1,55 @@
-import React, { useState, useEffect } from 'react';
-import About from './pages/About';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import './index.css';
+import { useState, useEffect } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "./firebase";
+
+import About from "./pages/About";
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
+
+import "./index.css";
 
 function App() {
-  const [currentPage, setCurrentPage] = useState('about');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentPage, setCurrentPage] = useState("about");
+  const [user, setUser] = useState(null);
 
-  // Kiểm tra đăng nhập khi khởi động
   useEffect(() => {
-    const userEmail = localStorage.getItem('userEmail');
-    if (userEmail) setIsLoggedIn(true);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+
+    return unsubscribe;
   }, []);
 
   const handlePageChange = (page) => {
-    // Logic bảo vệ: Nếu chưa đăng nhập mà muốn vào dashboard -> bắt sang login
-    if (page === 'dashboard' && !isLoggedIn) {
-      setCurrentPage('login');
-    } else {
-      setCurrentPage(page);
+    if (page === "dashboard" && !user) {
+      setCurrentPage("login");
+      return;
     }
+
+    setCurrentPage(page);
   };
 
   return (
     <>
-      {currentPage === 'about' && <About changePage={handlePageChange} />}
-      {currentPage === 'login' && <Login changePage={setCurrentPage} setIsLoggedIn={setIsLoggedIn} />}
-      {currentPage === 'dashboard' && <Dashboard changePage={setCurrentPage} />}
+      {currentPage === "about" && (
+        <About
+          changePage={handlePageChange}
+          user={user}
+        />
+      )}
+
+      {currentPage === "login" && (
+        <Login
+          changePage={setCurrentPage}
+        />
+      )}
+
+      {currentPage === "dashboard" && (
+        <Dashboard
+          changePage={setCurrentPage}
+          user={user}
+        />
+      )}
     </>
   );
 }

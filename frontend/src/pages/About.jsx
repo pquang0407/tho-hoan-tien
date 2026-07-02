@@ -2,23 +2,19 @@ import React from "react";
 import { auth } from "../firebase";
 import { signOut } from "firebase/auth";
 import "../assets/styles/About.css";
+import FloatingCarrots from "../components/FloatingCarrots";
 
-const About = ({ changePage, setIsLoggedIn }) => {
-    const userEmail = localStorage.getItem("userEmail");
-    const displayName = localStorage.getItem("displayName");
-    const photoURL = localStorage.getItem("photoURL");
+const About = ({ changePage, user }) => {
+    const userEmail = user?.email;
+    const displayName = user?.displayName;
+    const photoURL = user?.photoURL;
 
     const handleLogout = async () => {
         try {
             await signOut(auth);
-            localStorage.removeItem("userEmail");
-            localStorage.removeItem("displayName");
-            localStorage.removeItem("photoURL");
-            setIsLoggedIn(false);
             changePage("about");
-        } catch (error) {
-            console.error(error);
-            alert("Đăng xuất thất bại!");
+        } catch (err) {
+            console.error(err);
         }
     };
 
@@ -72,7 +68,11 @@ const About = ({ changePage, setIsLoggedIn }) => {
                 </div>
                 <div className="hero-visual-right">
                     <div className="floating-rabbit-box">
-                        <span className="giant-emoji floating">🐰</span>
+                        <img
+                            src="./src/assets/images/rabbit.png"
+                            alt="Rabbit"
+                            className="hero-rabbit floating"
+                        />
                         <div className="mini-badge badge-1 bouncing">🛍️ Shopee</div>
                         <div className="mini-badge badge-2 bouncing-delayed">🎁 TikTok</div>
                         <div className="mini-badge badge-3 bouncing">💙 Lazada</div>
@@ -185,6 +185,11 @@ const About = ({ changePage, setIsLoggedIn }) => {
                     </button>
                 </div>
             </section>
+            <>
+                <FloatingCarrots />
+
+                {/* Toàn bộ giao diện */}
+            </>
         </div>
     );
 };
