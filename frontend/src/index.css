@@ -1,0 +1,34 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+:root {
+  color-scheme: light !important;
+  /* DÒNG NÀY DIỆT DARK MODE */
+  --orange-primary: #f27b8a;
+  /* Hồng dâu đậm */
+  --orange-hover: #e05e6e;
+  --peach-light: #fff0f3;
+  --mint-light: #e0f7fa;
+  --yellow-light: #fff9c4;
+  --text-dark: #4a4a4a;
+  --text-gray: #7a7a7a;
+  --bg-main: #fff0f4;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-main) !important;
+  color: var(--text-dark) !important;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  display: block !important;
+}
+
+#root {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-align: left !important;
+  display: block !important;
+}

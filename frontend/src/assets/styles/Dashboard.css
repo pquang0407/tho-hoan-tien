@@ -1,0 +1,527 @@
+/* --- ANIMATIONS --- */
+@keyframes slideUpFade {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.slide-up {
+    animation: slideUpFade 0.4s ease-out forwards;
+}
+
+/* --- CONTAINER & HEADER --- */
+.dashboard-container {
+    max-width: 850px;
+    margin: 40px auto;
+    padding: 0 20px 60px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    color: var(--text-dark);
+}
+
+.dashboard-header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 30px;
+}
+
+.page-title {
+    font-size: 36px;
+    font-weight: 800;
+    margin: 0;
+    color: var(--text-dark);
+}
+
+/* Nút Back cute */
+.btn-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border: 2px solid #eaeaea;
+    border-radius: 30px;
+    /* Bo tròn viên thuốc */
+    background: white;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text-gray);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03);
+    transition: all 0.3s ease;
+}
+
+.btn-back:hover {
+    color: var(--orange-primary);
+    border-color: var(--peach-light);
+    background: var(--peach-light);
+}
+
+.back-icon {
+    font-size: 16px;
+}
+
+/* --- QUOTE BOX --- */
+.quote-box {
+    background: linear-gradient(135deg, #ffffff 0%, var(--peach-light) 100%);
+    padding: 24px 30px;
+    border-radius: 24px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.02);
+    margin-bottom: 40px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    position: relative;
+    overflow: hidden;
+}
+
+.quote-box p {
+    font-style: italic;
+    color: var(--text-gray);
+    margin: 0 0 12px 0;
+    line-height: 1.6;
+    font-size: 15px;
+    position: relative;
+    z-index: 1;
+}
+
+.quote-author {
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--orange-primary);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+
+/* --- PLATFORM TABS --- */
+.platform-tabs {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    position: relative;
+}
+
+.tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 28px;
+    background: white;
+    border: 2px solid #eaeaea;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    color: var(--text-gray);
+    transition: all 0.3s ease;
+    position: relative;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
+}
+
+.tab-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.05);
+}
+
+.tab-btn.active {
+    border-color: var(--orange-primary);
+    color: var(--orange-primary);
+    background-color: var(--peach-light);
+    box-shadow: 0 8px 20px rgba(242, 123, 138, 0.15);
+    /* Bóng hồng */
+}
+
+.tab-icon {
+    font-size: 20px;
+}
+
+.beta-tag {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    background: linear-gradient(135deg, #a855f7, #ec4899);
+    color: white;
+    font-size: 10px;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-weight: 800;
+    box-shadow: 0 4px 10px rgba(168, 85, 247, 0.3);
+}
+
+/* --- INPUT BOX --- */
+.converter-box {
+    background: white;
+    padding: 30px;
+    border-radius: 32px;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.03);
+    border: 1px solid #f0f0f0;
+    margin-bottom: 40px;
+}
+
+.converter-box label {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: var(--text-dark);
+    font-size: 16px;
+}
+
+.input-wrapper {
+    display: flex;
+    align-items: center;
+    background: #f8f9fa;
+    border: 2px solid #eaeaea;
+    border-radius: 50px;
+    /* Bo tròn hoàn toàn */
+    padding: 6px;
+    transition: all 0.3s ease;
+}
+
+.input-wrapper:focus-within {
+    border-color: var(--orange-primary);
+    background: white;
+    box-shadow: 0 0 0 4px var(--peach-light);
+}
+
+.paste-icon {
+    padding: 0 16px;
+    color: var(--text-gray);
+    font-size: 20px;
+}
+
+.input-wrapper input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 16px 0;
+    font-size: 15px;
+    font-family: inherit;
+    outline: none;
+    color: var(--text-dark);
+}
+
+.clear-btn {
+    background: #eaeaea;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+    font-size: 12px;
+    transition: 0.2s;
+}
+
+.clear-btn:hover {
+    background: #d4d4d4;
+}
+
+.btn-convert {
+    background: var(--orange-primary);
+    color: white;
+    border: none;
+    padding: 16px 32px;
+    border-radius: 50px;
+    font-weight: 800;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    white-space: nowrap;
+    box-shadow: 0 8px 20px rgba(242, 123, 138, 0.3);
+}
+
+.btn-convert:hover:not(:disabled) {
+    transform: translateY(-2px);
+    background: var(--orange-hover);
+    box-shadow: 0 12px 25px rgba(242, 123, 138, 0.4);
+}
+
+.btn-convert:disabled {
+    background: #ccc;
+    box-shadow: none;
+    cursor: not-allowed;
+}
+
+/* --- ERROR BOX (Mới thêm) --- */
+.error-box {
+    background: #fff0f0;
+    color: #e11d48;
+    padding: 16px 24px;
+    border-radius: 16px;
+    border: 2px solid #fecdd3;
+    margin-bottom: 40px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* --- RESULT AREA --- */
+.result-header {
+    margin-bottom: 20px;
+}
+
+.result-header h3 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 800;
+}
+
+.result-card {
+    background: white;
+    border: 2px solid #22c55e;
+    border-radius: 32px;
+    padding: 32px;
+    box-shadow: 0 20px 50px rgba(34, 197, 94, 0.08);
+}
+
+.success-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #059669;
+    background: #d1fae5;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 800;
+    font-size: 13px;
+    margin-bottom: 24px;
+}
+
+.product-info {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 30px;
+    padding-bottom: 24px;
+    border-bottom: 1px dashed #eaeaea;
+}
+
+.product-img {
+    width: 100px;
+    height: 100px;
+    border-radius: 20px;
+    object-fit: cover;
+    border: 1px solid #eaeaea;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+}
+
+.product-details {
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.product-details h4 {
+    margin: 0;
+    font-size: 18px;
+    line-height: 1.5;
+    color: var(--text-dark);
+    font-weight: 700;
+}
+
+/* Khối hoàn tiền */
+.cashback-estimate {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--peach-light);
+    padding: 24px;
+    border-radius: 24px;
+    margin-bottom: 24px;
+    border: 1px solid #ffe4e6;
+}
+
+.estimate-label {
+    font-size: 14px;
+    color: var(--orange-primary);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.estimate-amount {
+    font-size: 36px;
+    font-weight: 900;
+    color: var(--text-dark);
+    margin: 8px 0;
+}
+
+.original-price {
+    font-size: 14px;
+    color: var(--text-gray);
+    text-decoration: line-through;
+    font-weight: 500;
+}
+
+.estimate-percent {
+    background: white;
+    color: var(--orange-primary);
+    padding: 16px 20px;
+    border-radius: 20px;
+    font-weight: 900;
+    font-size: 24px;
+    box-shadow: 0 10px 20px rgba(242, 123, 138, 0.15);
+}
+
+/* Chi tiết hoa hồng */
+.commission-box {
+    margin-bottom: 24px;
+    border: 2px solid #f8f9fa;
+    border-radius: 24px;
+    padding: 16px 24px;
+    background: #fdfdfd;
+}
+
+.commission-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    font-size: 15px;
+    color: var(--text-gray);
+}
+
+.commission-row:not(:last-child) {
+    border-bottom: 1px dashed #eaeaea;
+}
+
+.commission-row strong {
+    color: var(--text-dark);
+    font-size: 16px;
+}
+
+.highlight-row {
+    color: var(--orange-primary);
+    font-weight: 700;
+}
+
+.highlight-row strong {
+    color: var(--orange-primary);
+    font-size: 18px;
+}
+
+/* Ghi chú */
+.cashback-note {
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #fffbf0;
+    border-radius: 20px;
+    border: 2px solid #fef08a;
+}
+
+.cashback-note b {
+    display: block;
+    margin-bottom: 8px;
+    color: #d97706;
+    font-size: 15px;
+}
+
+.cashback-note p {
+    margin: 0;
+    color: #92400e;
+    line-height: 1.6;
+    font-size: 14px;
+}
+
+/* Nút Action */
+.btn-open-link {
+    width: 100%;
+    background: var(--orange-primary);
+    color: white;
+    border: none;
+    padding: 20px;
+    border-radius: 50px;
+    font-size: 18px;
+    font-weight: 800;
+    cursor: pointer;
+    margin-bottom: 16px;
+    box-shadow: 0 10px 25px rgba(242, 123, 138, 0.35);
+}
+
+.action-footer {
+    display: flex;
+    gap: 16px;
+}
+
+.btn-secondary-action {
+    flex: 1;
+    background: white;
+    border: 2px solid #eaeaea;
+    padding: 16px;
+    border-radius: 50px;
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--text-dark);
+    cursor: pointer;
+}
+
+/* Bubbly Hover Effect cho tất cả nút */
+.bubbly-hover {
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.bubbly-hover:hover {
+    transform: translateY(-3px);
+}
+
+.btn-open-link:hover {
+    background: var(--orange-hover);
+    box-shadow: 0 15px 30px rgba(242, 123, 138, 0.45);
+}
+
+.btn-secondary-action:hover {
+    border-color: var(--peach-light);
+    background: var(--peach-light);
+    color: var(--orange-primary);
+}
+
+/* --- RESPONSIVE MOBILE --- */
+@media (max-width: 768px) {
+    .dashboard-container {
+        padding: 0 16px 40px;
+    }
+
+    .platform-tabs {
+        overflow-x: auto;
+        padding-bottom: 10px;
+    }
+
+    .tab-btn {
+        flex-shrink: 0;
+    }
+
+    .input-wrapper {
+        flex-direction: column;
+        border-radius: 24px;
+        padding: 16px;
+        gap: 12px;
+    }
+
+    .input-wrapper input {
+        width: 100%;
+        padding: 8px 0;
+        text-align: center;
+    }
+
+    .btn-convert {
+        width: 100%;
+    }
+
+    .cashback-estimate {
+        flex-direction: column;
+        text-align: center;
+        gap: 20px;
+    }
+
+    .action-footer {
+        flex-direction: column;
+    }
+}
