@@ -1,14 +1,20 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { auth } from "../firebase";
-import { signOut } from "firebase/auth";
+import { signOut, onAuthStateChanged } from "firebase/auth";
 import "../assets/styles/About.css";
 import FloatingCarrots from "../components/FloatingCarrots";
 import rabbit from "../assets/images/rabbit.png";
 
-const About = ({ changePage, user }) => {
-    const userEmail = user?.email;
-    const displayName = user?.displayName;
-    const photoURL = user?.photoURL;
+const About = ({ changePage }) => {
+    const [user, setUser] = useState(null);
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+            setUser(currentUser);
+        });
+
+        return unsubscribe;
+    }, []);
 
     const handleLogout = async () => {
         try {
@@ -16,8 +22,13 @@ const About = ({ changePage, user }) => {
             changePage("about");
         } catch (err) {
             console.error(err);
+            alert("Đăng xuất thất bại!");
         }
     };
+
+    const userEmail = user?.email;
+    const displayName = user?.displayName;
+    const photoURL = user?.photoURL;
 
     return (
         <div className="about-container cute-theme">
@@ -41,7 +52,11 @@ const About = ({ changePage, user }) => {
                         </button>
                     </div>
                 ) : (
-                    <button className="btn-bubbly-primary small-btn shadow-hover" onClick={() => changePage("login")}>
+                    <button className="btn-bubbly-primary small-btn shadow-hover" onClick={() =>
+    user
+        ? changePage("dashboard")
+        : changePage("login")
+}>
                         Đăng nhập ✨
                     </button>
                 )}
