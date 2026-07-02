@@ -9,22 +9,6 @@ import {
 } from "firebase/auth";
 
 const Login = ({ changePage, setIsLoggedIn }) => {
-    const [email, setEmail] = useState('');
-
-    const handleEmailLogin = (e) => {
-        e.preventDefault();
-
-        if (!email) return;
-
-        localStorage.setItem("userEmail", email);
-        localStorage.setItem("displayName", email.split("@")[0]);
-        localStorage.removeItem("photoURL");
-
-        setIsLoggedIn(true);
-
-        // Quay về About
-        changePage("about");
-    };
     const handleGoogleLogin = async () => {
         try {
 
@@ -87,28 +71,7 @@ const Login = ({ changePage, setIsLoggedIn }) => {
                 <div className="login-card">
                     <div className="login-header">
                         <h2>Chào mừng bạn quay lại 🌸</h2>
-                        <p>Nhập email để nhận mã đăng nhập.</p>
-                    </div>
-
-                    <form className="login-form" onSubmit={handleEmailLogin}>
-                        <div className="input-group">
-                            <label>Địa chỉ email</label>
-                            <input
-                                type="email"
-                                placeholder="you@example.com"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                required
-                            />
-                        </div>
-
-                        <button type="submit" className="btn-bubbly-primary full-width">
-                            <span className="btn-icon">✉️</span> Gửi mã đăng nhập
-                        </button>
-                    </form>
-
-                    <div className="divider">
-                        <span>hoặc</span>
+                        <p>Đăng nhập bằng Google để tiếp tục.</p>
                     </div>
 
                     <button className="btn-google full-width" type="button" onClick={handleGoogleLogin}>
