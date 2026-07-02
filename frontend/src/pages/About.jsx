@@ -3,6 +3,7 @@ import { auth } from "../firebase";
 import { signOut } from "firebase/auth";
 import "../assets/styles/About.css";
 import FloatingCarrots from "../components/FloatingCarrots";
+import rabbit from "../assets/images/rabbit.png";
 
 const About = ({ changePage, user }) => {
     const userEmail = user?.email;
@@ -69,7 +70,7 @@ const About = ({ changePage, user }) => {
                 <div className="hero-visual-right">
                     <div className="floating-rabbit-box">
                         <img
-                            src="./src/assets/images/rabbit.png"
+                            src={rabbit}
                             alt="Rabbit"
                             className="hero-rabbit floating"
                         />
