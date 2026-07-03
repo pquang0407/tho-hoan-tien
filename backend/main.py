@@ -29,7 +29,7 @@ SHOPEE_CAMPAIGN_ID = ""
 # Lazada sau này
 LAZADA_CAMPAIGN_ID = ""
 
-USER_CASHBACK_PERCENT = 20
+cashback_percent = 80
 
 # 2. Khởi tạo Firebase Admin
 try:
@@ -169,11 +169,9 @@ async def convert_link(request: Request, body: LinkRequest):
     # Cashback
     # =====================
 
-    cashback_percent = USER_CASHBACK_PERCENT
-
-    cashback = round(commission * cashback_percent / 100)
-
-    publisher_income = commission - cashback
+    cashback = round(commission * 0.8)
+    
+    publisher_income = round(commission * 0.2)
 
     client_ip = request.client.host
 
