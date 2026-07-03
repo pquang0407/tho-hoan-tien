@@ -278,36 +278,6 @@ def verify_admin(request: Request):
 
     return decoded
 
-def get_firebase_summary():
-
-    conversions = list(
-        db.collection("conversions").stream()
-    )
-
-    logs = list(
-        db.collection("logs").stream()
-    )
-
-    emails = set()
-
-    for doc in conversions:
-
-        data = doc.to_dict()
-
-        email = data.get("user_email")
-
-        if email:
-            emails.add(email)
-
-    return {
-
-        "generated_links": len(conversions),
-
-        "logs": len(logs),
-
-        "users": len(emails)
-
-    }
 
 def get_firebase_summary():
 
