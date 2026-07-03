@@ -14,6 +14,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from fastapi import Request
 from slowapi import _rate_limit_exceeded_handler
+from datetime import datetime, timedelta, timezone
 
 
 # 1. Load cấu hình
@@ -33,6 +34,9 @@ LAZADA_CAMPAIGN_ID = ""
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL")
 
 cashback_percent = 80
+
+REPORT_DAYS = 30
+REQUEST_TIMEOUT = 15
 
 # 2. Khởi tạo Firebase Admin
 try:
@@ -273,6 +277,187 @@ def verify_admin(request: Request):
         )
 
     return decoded
+
+def get_firebase_summary():
+
+    conversions = list(
+        db.collection("conversions").stream()
+    )
+
+    logs = list(
+        db.collection("logs").stream()
+    )
+
+    emails = set()
+
+    for doc in conversions:
+
+        data = doc.to_dict()
+
+        email = data.get("user_email")
+
+        if email:
+            emails.add(email)
+
+    return {
+
+        "generated_links": len(conversions),
+
+        "logs": len(logs),
+
+        "users": len(emails)
+
+    }
+
+def get_firebase_summary():
+
+    conversions = list(
+        db.collection("conversions").stream()
+    )
+
+    logs = list(
+        db.collection("logs").stream()
+    )
+
+    emails = set()
+
+    for doc in conversions:
+
+        data = doc.to_dict()
+
+        email = data.get("user_email")
+
+        if email:
+            emails.add(email)
+
+    return {
+
+        "generated_links": len(conversions),
+
+        "logs": len(logs),
+
+        "users": len(emails)
+
+    }
+
+def get_at_orders():
+
+    headers = {
+        "Authorization": f"Token {AT_API_KEY}"
+    }
+
+    until = datetime.now(timezone.utc)
+
+    since = until - timedelta(days=REPORT_DAYS)
+
+    params = {
+        "since": since.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "until": until.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "limit": 100
+    }
+
+    response = requests.get(
+        "https://api.accesstrade.vn/v1/order-list",
+        headers=headers,
+        params=params,
+        timeout=REQUEST_TIMEOUT
+    )
+
+    try:
+
+        response.raise_for_status()
+
+    except requests.RequestException:
+
+        raise HTTPException(
+            status_code=500,
+            detail="Không lấy được dữ liệu AccessTrade"
+        )
+
+    return response.json()
+
+@app.get("/api/admin/at-reports")
+@limiter.limit("5/minute")
+def admin_reports(request: Request):
+
+    verify_admin(request)
+
+    report = get_at_orders()
+
+    firebase = get_firebase_summary()
+
+    orders = report.get("data", [])
+
+    total_orders = len(orders)
+
+    total_commission = 0
+
+    net_profit = 0
+
+    result = []
+
+    for item in orders:
+
+        commission = float(item.get("pub_commission", 0))
+
+        approved = item["order_approved"] > 0
+
+        if approved:
+            total_commission += commission
+            net_profit += commission * 0.2
+
+        if item["order_approved"] > 0:
+            status = 1
+        elif item["order_reject"] > 0:
+            status = 2
+        else:
+            status = 0
+
+        result.append({
+
+            "order_id": item["order_id"],
+
+            "order_time": item["sales_time"],
+
+            "campaign_name": item["merchant"],
+
+            "sales_amount": item["billing"],
+
+            "pub_commission": commission,
+
+            "order_status": status
+
+        })
+    result.sort(
+    key=lambda x: x["order_time"],
+    reverse=True
+    )
+
+    return {
+
+        "success": True,
+
+        "summary": {
+
+            "clicks": 0,
+
+            "conversions": total_orders,
+
+            "total_commission": round(total_commission),
+
+            "net_profit": round(net_profit),
+
+            "generated_links": firebase["generated_links"],
+
+            "users": firebase["users"],
+
+            "logs": firebase["logs"]
+
+        },
+
+        "orders": result[:30]
+
+    }
 
 @app.get("/api/admin/test")
 def admin_test(request: Request):
