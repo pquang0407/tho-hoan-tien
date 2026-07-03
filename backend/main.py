@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 import firebase_admin
 from firebase_admin import credentials, firestore
 from datetime import datetime
-
+from firebase_admin import auth as firebase_auth
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -28,6 +28,9 @@ SHOPEE_CAMPAIGN_ID = ""
 
 # Lazada sau này
 LAZADA_CAMPAIGN_ID = ""
+
+#tai khoan admin
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL")
 
 cashback_percent = 80
 
@@ -235,6 +238,50 @@ async def convert_link(request: Request, body: LinkRequest):
 
         }
 
+    }
+
+def verify_admin(request: Request):
+
+    auth_header = request.headers.get("Authorization")
+
+    if not auth_header:
+        raise HTTPException(
+            status_code=401,
+            detail="Missing token"
+        )
+
+    token = auth_header.replace("Bearer ", "")
+
+    try:
+
+        decoded = firebase_auth.verify_id_token(token)
+
+    except Exception:
+
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid token"
+        )
+
+    email = decoded.get("email")
+
+    if email != ADMIN_EMAIL:
+
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden"
+        )
+
+    return decoded
+
+@app.get("/api/admin/test")
+def admin_test(request: Request):
+
+    admin = verify_admin(request)
+
+    return {
+        "success": True,
+        "email": admin["email"]
     }
         
 @app.get("/campaigns")
