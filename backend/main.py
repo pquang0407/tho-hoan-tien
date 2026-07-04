@@ -120,9 +120,6 @@ def get_dashboard_analytics(orders):
         for doc in db.collection("conversions").stream()
     ]
 
-    report = get_at_orders()
-    orders = report["data"]
-
     today = datetime.now().date()
     week_ago = today - timedelta(days=6)
 
@@ -321,10 +318,12 @@ async def convert_link(request: Request, body: LinkRequest):
 def admin_reports(request: Request):
     verify_admin(request)
     report = get_at_orders()
-    firebase = get_firebase_summary()
-    analytics = get_dashboard_analytics(orders)
 
     orders = report.get("data", [])
+
+    firebase = get_firebase_summary()
+
+    analytics = get_dashboard_analytics(orders)
     total_orders = len(orders)
     total_commission = 0
     net_profit = 0
@@ -533,62 +532,62 @@ def get_user_history(email:str):
 @app.get("/api/user/wallet")
 def get_user_wallet(email: str):
 
-    report = get_at_orders()
-
-    balance = 0
-
-    pending = 0
-
-    withdrawn = 0
+    # ====== TEST ======
     if email == "phuquang04072001@gmail.com":
-        return {
-            "success": True,
-            "balance": 500000,
-            "pending": 0,
-            "withdrawn": 0
-        }
+        balance = 500000
+        pending = 0
 
-    for order in report["data"]:
+    else:
+        report = get_at_orders()
 
-        if order.get("utm_source") != email:
-            continue
+        balance = 0
+        pending = 0
 
-        cashback = float(order["pub_commission"]) * 0.8
+        for order in report["data"]:
 
-        if order["order_approved"] > 0:
+            if order.get("utm_source") != email:
+                continue
 
-            balance += cashback
+            cashback = float(order["pub_commission"]) * 0.8
 
-        elif order["order_reject"] > 0:
+            if order["order_approved"] > 0:
+                balance += cashback
+            elif order["order_reject"] > 0:
+                pass
+            else:
+                pending += cashback
 
-            pass
-
-        else:
-
-            pending += cashback
-
-    approved = db.collection("withdrawals")\
-        .where("user_email","==",email)\
-        .where("status","==","approved")\
-        .stream()
-
-    pending_requests = db.collection("withdrawals")\
-        .where("user_email","==",email)\
-        .where("status","==","pending")\
-        .stream()
+    # ====== Đã rút ======
 
     approved_amount = 0
-    pending_amount = 0
+
+    approved = (
+        db.collection("withdrawals")
+        .where("user_email", "==", email)
+        .where("status", "==", "approved")
+        .stream()
+    )
 
     for w in approved:
         approved_amount += w.to_dict()["amount"]
+
+    # ====== Đang chờ ======
+
+    pending_amount = 0
+
+    pending_requests = (
+        db.collection("withdrawals")
+        .where("user_email", "==", email)
+        .where("status", "==", "pending")
+        .stream()
+    )
 
     for w in pending_requests:
         pending_amount += w.to_dict()["amount"]
 
     available = balance - approved_amount - pending_amount
 
-    available = max(available, 0)
+    available = max(0, available)
 
     return {
         "success": True,
