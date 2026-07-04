@@ -3,7 +3,7 @@ import carrot from "../assets/images/carrot_1.gif";
 import coin from "../assets/images/coin.gif";
 import "../assets/styles/FloatingCarrots.css";
 
-const TOTAL = 5;
+const TOTAL = 3;
 
 export default function FloatingCarrots() {
     const [explode, setExplode] = useState(Array(TOTAL).fill(false));

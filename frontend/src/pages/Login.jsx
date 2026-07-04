@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import "../assets/styles/Login.css";
 import FloatingCarrots from "../components/FloatingCarrots";
 import { auth } from "../firebase";
@@ -8,15 +9,15 @@ import {
     signInWithPopup
 } from "firebase/auth";
 
-const Login = ({ changePage, setIsLoggedIn }) => {
+const Login = () => {
+    const navigate = useNavigate();
     const handleGoogleLogin = async () => {
         try {
             const provider = new GoogleAuthProvider();
 
             await signInWithPopup(auth, provider);
 
-            changePage("about");
-
+            navigate("/");
         } catch (error) {
             console.error(error);
             alert("Đăng nhập thất bại!");
@@ -50,7 +51,10 @@ const Login = ({ changePage, setIsLoggedIn }) => {
             <div className="login-right">
                 <div className="back-link-wrapper">
                     {/* Quay lại About */}
-                    <a href="#" className="back-link bubbly-hover" onClick={(e) => { e.preventDefault(); changePage('about'); }}>
+                    <a href="#" className="back-link bubbly-hover" onClick={(e) => {
+                        e.preventDefault();
+                        navigate("/");
+                    }}>
                         <span className="back-arrow">←</span> Về trang giới thiệu
                     </a>
                 </div>

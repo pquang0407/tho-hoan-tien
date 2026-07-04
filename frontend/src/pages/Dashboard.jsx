@@ -1,21 +1,32 @@
-import React, { useState } from 'react';
-import { auth } from "../firebase";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import '../assets/styles/Dashboard.css';
 import FloatingCarrots from "../components/FloatingCarrots";
 
-const Dashboard = ({ changePage, user }) => {
-    const [activeTab, setActiveTab] = useState('shopee');
-    const [linkInput, setLinkInput] = useState('');
+const Dashboard = ({ user }) => {
+    const navigate = useNavigate();
+
+    if (!user) {
+        navigate("/login");
+        return null;
+    }
+
+    const [activeTab, setActiveTab] = useState("shopee");
+    const [linkInput, setLinkInput] = useState("");
     const [isConverting, setIsConverting] = useState(false);
     const [showResult, setShowResult] = useState(false);
     const [result, setResult] = useState(null);
     const [error, setError] = useState("");
+    if (!user) {
+        navigate("/login");
+        return null;
+    }
 
     const handleConvert = async () => {
         if (!linkInput) return;
 
         if (!user) {
-            alert("Vui lòng đăng nhập");
+            navigate("/login");
             return;
         }
 
@@ -66,10 +77,18 @@ const Dashboard = ({ changePage, user }) => {
             <div className="dashboard-header">
                 <button
                     className="btn-back bubbly-hover"
-                    onClick={() => changePage("about")}
+                    onClick={() => navigate("/")}
                 >
                     <span className="back-icon">←</span> Về trang chủ
                 </button>
+                {user?.email === "admin@gmail.com" && (
+                    <button
+                        className="btn-back bubbly-hover"
+                        onClick={() => navigate("/admin")}
+                    >
+                        🔒 Admin
+                    </button>
+                )}
                 <h1 className="page-title">Chuyển đổi link ✨</h1>
             </div>
 

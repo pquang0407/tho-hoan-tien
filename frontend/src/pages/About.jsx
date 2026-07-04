@@ -1,69 +1,22 @@
-import React, { useEffect, useState } from "react";
-import { auth } from "../firebase";
-import { signOut, onAuthStateChanged } from "firebase/auth";
+import React, { useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import "../assets/styles/About.css";
 import FloatingCarrots from "../components/FloatingCarrots";
 import rabbit from "../assets/images/rabbit.png";
 
-const About = ({ changePage }) => {
-    const [user, setUser] = useState(null);
-
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-            setUser(currentUser);
-        });
-
-        return unsubscribe;
-    }, []);
-
-    const handleLogout = async () => {
-        try {
-            await signOut(auth);
-            changePage("about");
-        } catch (err) {
-            console.error(err);
-            alert("Đăng xuất thất bại!");
-        }
-    };
+const About = ({ user }) => {
+    const navigate = useNavigate();
+    const guideRef = useRef(null);
 
     const userEmail = user?.email;
-    const displayName = user?.displayName;
-    const photoURL = user?.photoURL;
 
     return (
         <div className="about-container cute-theme">
-            {/* Header / Nav (Đã được làm đẹp lại bằng CSS thay vì inline-style để mượt hơn) */}
-            <nav className="about-navbar blur-bg slide-down">
-                <h2 className="navbar-logo" onClick={() => changePage("about")}>
-                    <span className="logo-icon bouncing">🐰</span> Thỏ Hoàn Tiền
-                </h2>
 
-                {userEmail ? (
-                    <div className="user-profile-nav">
-                        {photoURL && (
-                            <img src={photoURL} alt="Avatar" className="user-avatar shadow-hover" />
-                        )}
-                        <div className="user-info-nav">
-                            <strong>{displayName}</strong>
-                            <small>{userEmail}</small>
-                        </div>
-                        <button className="btn-bubbly-outline small-btn shadow-hover" onClick={handleLogout}>
-                            Đăng xuất
-                        </button>
-                    </div>
-                ) : (
-                    <button className="btn-bubbly-primary small-btn shadow-hover" onClick={() =>
-    user
-        ? changePage("dashboard")
-        : changePage("login")
-}>
-                        Đăng nhập ✨
-                    </button>
-                )}
-            </nav>
+            {/* Đã xóa Navbar ngang ở đây để nhường chỗ cho Sidebar */}
 
             {/* --- HERO SECTION --- */}
-            <section className="hero-split slide-up-delay-1">
+            <section className="hero-split slide-up-delay-1" style={{ paddingTop: '20px' }}>
                 <div className="hero-content-left">
                     <div className="pill-badge floating-slow">✨ Bí kíp nhặt cà rốt</div>
                     <h1 className="hero-title-bubbly">
@@ -75,11 +28,24 @@ const About = ({ changePage }) => {
                     <div className="action-group">
                         <button
                             className="btn-bubbly-primary shadow-hover giant-btn"
-                            onClick={() => userEmail ? changePage("dashboard") : changePage("login")}
+                            onClick={() =>
+                                userEmail
+                                    ? navigate("/dashboard")
+                                    : navigate("/login")
+                            }
                         >
                             Bắt đầu ngay ➔
                         </button>
-                        <button className="btn-bubbly-outline shadow-hover giant-btn">Xem cách chơi</button>
+                        <button
+                            className="btn-bubbly-outline shadow-hover giant-btn"
+                            onClick={() =>
+                                guideRef.current?.scrollIntoView({
+                                    behavior: "smooth"
+                                })
+                            }
+                        >
+                            Xem cách chơi
+                        </button>
                     </div>
                 </div>
                 <div className="hero-visual-right">
@@ -122,7 +88,7 @@ const About = ({ changePage }) => {
             </section>
 
             {/* --- HƯỚNG DẪN TIMELINE --- */}
-            <section className="zigzag-steps-section slide-up-delay-3">
+            <section ref={guideRef} className="zigzag-steps-section slide-up-delay-3">
                 <div className="header-center">
                     <span className="pill-badge">🐾 Dấu chân thỏ</span>
                     <h2>3 nhịp đơn giản để có quà</h2>
@@ -195,7 +161,11 @@ const About = ({ changePage }) => {
                     <p>Chỉ một thao tác nhỏ xíu trước khi chốt đơn là bạn đã tiết kiệm được ối tiền rồi đó.</p>
                     <button
                         className="btn-bubbly-primary large-btn shadow-hover"
-                        onClick={() => changePage('login')}
+                        onClick={() =>
+                            user
+                                ? navigate("/dashboard")
+                                : navigate("/login")
+                        }
                     >
                         Tham gia hang thỏ ngay ➔
                     </button>
@@ -203,8 +173,6 @@ const About = ({ changePage }) => {
             </section>
             <>
                 <FloatingCarrots />
-
-                {/* Toàn bộ giao diện */}
             </>
         </div>
     );
