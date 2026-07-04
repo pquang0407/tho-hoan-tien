@@ -425,7 +425,7 @@ async def create_withdrawal(request: Request, body: WithdrawalRequest):
 
         "status": "pending",
 
-        "available_balance": wallet["balance"],
+        "balance_at_request": wallet["balance"],
 
         "created_at": datetime.now()
 
@@ -547,6 +547,7 @@ def get_user_wallet(email: str):
             "pending": 0,
             "withdrawn": 0
         }
+
     for order in report["data"]:
 
         if order.get("utm_source") != email:
@@ -566,26 +567,34 @@ def get_user_wallet(email: str):
 
             pending += cashback
 
-    withdrawals = db.collection("withdrawals")\
+    approved = db.collection("withdrawals")\
         .where("user_email","==",email)\
         .where("status","==","approved")\
         .stream()
 
-    for w in withdrawals:
-        withdrawn += w.to_dict()["amount"]
+    pending_requests = db.collection("withdrawals")\
+        .where("user_email","==",email)\
+        .where("status","==","pending")\
+        .stream()
 
-    balance -= withdrawn
-    balance = max(balance, 0)
+    approved_amount = 0
+    pending_amount = 0
+
+    for w in approved:
+        approved_amount += w.to_dict()["amount"]
+
+    for w in pending_requests:
+        pending_amount += w.to_dict()["amount"]
+
+    available = balance - approved_amount - pending_amount
+
+    available = max(available, 0)
 
     return {
-
-        "success":True,
-
-        "balance":round(balance),
-
-        "pending":round(pending),
-
-        "withdrawn":round(withdrawn)
+        "success": True,
+        "balance": round(available),
+        "pending": round(pending_amount),
+        "withdrawn": round(approved_amount)
     }
 
 if __name__ == "__main__":
