@@ -27,6 +27,7 @@ LAZADA_CAMPAIGN_ID = ""
 
 # Tài khoản admin
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL")
+
 cashback_percent = 80
 REPORT_DAYS = 30
 REQUEST_TIMEOUT = 15
@@ -62,110 +63,39 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 4. Models
 class LinkRequest(BaseModel):
     user_email: str
     original_url: str
     platform: str
 
-@app.post("/api/convert")
-@limiter.limit("10/minute")
-async def convert_link(request: Request, body: LinkRequest):
-    if body.platform != "tiktok":
-        raise HTTPException(status_code=400, detail="Hiện tại chỉ hỗ trợ TikTok Shop")
+class WithdrawalRequest(BaseModel):
+    user_email: str
+    amount: float
+    bank_info: str
 
-    headers = {
-        "Authorization": f"Token {AT_API_KEY}",
-        "Content-Type": "application/json",
-        "accept": "application/json"
-    }
+class WithdrawalUpdate(BaseModel):
+    request_id: str
+    status: str # "approved" hoặc "rejected"
 
-    payload = {
-        "product_url": body.original_url,
-        "utm_source": body.user_email,
-        "utm_medium": body.platform,
-        "utm_campaign": "cashback"
-    }
-
-    response = requests.post(
-        "https://api.accesstrade.vn/v2/tiktokshop_product_feeds/create_link",
-        headers=headers,
-        json=payload
-    )
-
-    if response.status_code != 200:
-        raise HTTPException(status_code=500, detail="Không thể kết nối AccessTrade")
-
-    response_data = response.json()
-
-    if not response_data.get("status"):
-        msg = body.get("message", "Không thể tạo link")
-        if msg == "invalid params":
-            msg = "Link sản phẩm không hợp lệ hoặc hiện chưa hỗ trợ hoàn tiền."
-        elif "campaign" in msg.lower():
-            msg = "Sản phẩm này hiện chưa tham gia chương trình hoàn tiền."
-        elif "not found" in msg.lower():
-            msg = "Không tìm thấy sản phẩm."
-        raise HTTPException(status_code=400, detail=msg)
-
-    data = response_data["data"]
-    aff_link = data["aff_url"]
-    short_link = data["aff_short_url"]
-    product_name = data["product_name"]
-    product_image = data["product_image"]
-    
-    price_info = data.get("product_price", {})
-    product_price = float(price_info.get("maximum_amount") or price_info.get("minimum_amount") or 0)
-    
-    commission_info = data.get("product_commission", {})
-    commission = float(commission_info.get("amount", 0))
-
-    cashback = round(commission * 0.8)
-    publisher_income = round(commission * 0.2)
-    client_ip = request.client.host
-
-    db.collection("logs").add({
-        "ip": client_ip,
-        "email": body.user_email,
-        "platform": body.platform,
-        "url": body.original_url,
-        "product_name": product_name,
-        "created_at": datetime.now()
-    })
-
-    db.collection("conversions").add({
-        "user_email": body.user_email,
-        "original_url": body.original_url,
-        "platform": body.platform,
-        "product_name": product_name,
-        "product_price": product_price,
-        "commission": commission,
-        "cashback": cashback,
-        "publisher_income": publisher_income,
-        "short_link": short_link,
-        "aff_link": aff_link,
-        "created_at": datetime.now()
-    })
-
-    return {
-        "success": True,
-        "product": {"name": product_name, "image": product_image, "price": product_price},
-        "commission": {"amount": commission, "cashback_percent": cashback_percent, "cashback": cashback, "publisher_income": publisher_income},
-        "links": {"short": short_link, "affiliate": aff_link}
-    }
-
+# ==========================================
+# CÁC HÀM TIỆN ÍCH (UTILS)
+# ==========================================
 def verify_admin(request: Request):
     auth_header = request.headers.get("Authorization")
     if not auth_header:
         raise HTTPException(status_code=401, detail="Missing token")
+
     token = auth_header.replace("Bearer ", "")
     try:
         decoded = firebase_auth.verify_id_token(token)
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid token")
-    
+
     email = decoded.get("email")
     if email != ADMIN_EMAIL:
         raise HTTPException(status_code=403, detail="Forbidden")
+
     return decoded
 
 def get_firebase_summary():
@@ -188,7 +118,6 @@ def get_dashboard_analytics():
     today = datetime.now().date()
     week_ago = today - timedelta(days=6)
     
-    # ===== Biến lưu trữ =====
     daily_links = defaultdict(int)
     user_cashback = defaultdict(float)
     product_counter = Counter()
@@ -200,7 +129,7 @@ def get_dashboard_analytics():
         if created is None:
             continue
         
-        # Parse datetime nếu cần
+        # Xử lý parse date an toàn
         if hasattr(created, 'date'):
             created = created.date()
         elif isinstance(created, str):
@@ -209,10 +138,9 @@ def get_dashboard_analytics():
             except:
                 continue
                 
-        # Link theo ngày
+        # Thống kê 7 ngày
         if created >= week_ago:
             daily_links[str(created)] += 1
-        # Link hôm nay
         if created == today:
             today_links += 1
             
@@ -223,14 +151,12 @@ def get_dashboard_analytics():
                 first_seen[email] = created
                 
         product = item.get("product_name")
-        platform = item.get("platform", "shopee") # Lấy platform để gán icon
+        platform = item.get("platform", "shopee")
         if product:
             product_counter[(product, platform)] += 1
 
-    # User mới tuần này
     new_users = sum(1 for d in first_seen.values() if d >= week_ago)
     
-    # 7 ngày đầy đủ cho Bar Chart
     chart = []
     for i in range(7):
         d = week_ago + timedelta(days=i)
@@ -274,6 +200,83 @@ def get_at_orders():
         raise HTTPException(status_code=500, detail="Không lấy được dữ liệu AccessTrade")
     return response.json()
 
+# ==========================================
+# ENDPOINT: RÚT GỌN LINK
+# ==========================================
+@app.post("/api/convert")
+@limiter.limit("10/minute")
+async def convert_link(request: Request, body: LinkRequest):
+    if body.platform != "tiktok":
+        raise HTTPException(status_code=400, detail="Hiện tại chỉ hỗ trợ TikTok Shop")
+
+    headers = {
+        "Authorization": f"Token {AT_API_KEY}",
+        "Content-Type": "application/json",
+        "accept": "application/json"
+    }
+
+    payload = {
+        "product_url": body.original_url,
+        "utm_source": body.user_email,
+        "utm_medium": body.platform,
+        "utm_campaign": "cashback"
+    }
+
+    response = requests.post(
+        "https://api.accesstrade.vn/v2/tiktokshop_product_feeds/create_link",
+        headers=headers, json=payload
+    )
+
+    if response.status_code != 200:
+        raise HTTPException(status_code=500, detail="Không thể kết nối AccessTrade")
+
+    response_data = response.json()
+    if not response_data.get("status"):
+        msg = body.get("message", "Không thể tạo link")
+        if msg == "invalid params": msg = "Link không hợp lệ hoặc chưa hỗ trợ hoàn tiền."
+        elif "campaign" in msg.lower(): msg = "Sản phẩm chưa tham gia hoàn tiền."
+        elif "not found" in msg.lower(): msg = "Không tìm thấy sản phẩm."
+        raise HTTPException(status_code=400, detail=msg)
+
+    data = response_data["data"]
+    aff_link = data["aff_url"]
+    short_link = data["aff_short_url"]
+    product_name = data["product_name"]
+    product_image = data["product_image"]
+    
+    price_info = data.get("product_price", {})
+    product_price = float(price_info.get("maximum_amount") or price_info.get("minimum_amount") or 0)
+    
+    commission_info = data.get("product_commission", {})
+    commission = float(commission_info.get("amount", 0))
+
+    cashback = round(commission * 0.8)
+    publisher_income = round(commission * 0.2)
+    client_ip = request.client.host
+
+    db.collection("logs").add({
+        "ip": client_ip, "email": body.user_email, "platform": body.platform,
+        "url": body.original_url, "product_name": product_name, "created_at": datetime.now()
+    })
+
+    db.collection("conversions").add({
+        "user_email": body.user_email, "original_url": body.original_url,
+        "platform": body.platform, "product_name": product_name,
+        "product_price": product_price, "commission": commission,
+        "cashback": cashback, "publisher_income": publisher_income,
+        "short_link": short_link, "aff_link": aff_link, "created_at": datetime.now()
+    })
+
+    return {
+        "success": True,
+        "product": {"name": product_name, "image": product_image, "price": product_price},
+        "commission": {"amount": commission, "cashback_percent": cashback_percent, "cashback": cashback, "publisher_income": publisher_income},
+        "links": {"short": short_link, "affiliate": aff_link}
+    }
+
+# ==========================================
+# ENDPOINTS: ADMIN & QUẢN LÝ
+# ==========================================
 @app.get("/api/admin/at-reports")
 @limiter.limit("5/minute")
 def admin_reports(request: Request):
@@ -342,11 +345,89 @@ def admin_reports(request: Request):
         "orders": result[:30]
     }
 
-@app.get("/campaigns")
-def get_campaigns():
-    headers = {"Authorization": f"Token {AT_API_KEY}"}
-    response = requests.get("https://api.accesstrade.vn/v1/campaigns", headers=headers)
-    return {"status": response.status_code, "body": response.json()}
+# ==========================================
+# ENDPOINTS: RÚT TIỀN (WITHDRAWALS)
+# ==========================================
+@app.post("/api/withdrawals")
+@limiter.limit("5/minute")
+async def create_withdrawal(request: Request, body: WithdrawalRequest):
+    """User gửi yêu cầu rút tiền"""
+    db.collection("withdrawals").add({
+        "user_email": body.user_email,
+        "amount": body.amount,
+        "bank_info": body.bank_info,
+        "status": "pending",
+        "created_at": datetime.now()
+    })
+    return {"success": True, "message": "Yêu cầu rút tiền đã được gửi thành công!"}
+
+@app.get("/api/admin/withdrawals")
+def get_withdrawals(request: Request):
+    """Admin lấy danh sách yêu cầu rút tiền"""
+    verify_admin(request)
+    docs = db.collection("withdrawals").order_by("created_at", direction=firestore.Query.DESCENDING).stream()
+    
+    result = []
+    for doc in docs:
+        data = doc.to_dict()
+        # Parse date an toàn
+        created_time = ""
+        if "created_at" in data and data["created_at"]:
+            try:
+                created_time = data["created_at"].strftime("%d/%m/%Y %H:%M")
+            except:
+                created_time = str(data["created_at"])
+
+        result.append({
+            "id": doc.id,
+            "email": data.get("user_email", "N/A"),
+            "amount": data.get("amount", 0),
+            "bank": data.get("bank_info", "N/A"),
+            "status": data.get("status", "pending"),
+            "date": created_time
+        })
+    return {"success": True, "data": result}
+
+@app.post("/api/admin/withdrawals/update")
+def update_withdrawal(request: Request, body: WithdrawalUpdate):
+    """Admin cập nhật trạng thái yêu cầu rút tiền"""
+    verify_admin(request)
+    doc_ref = db.collection("withdrawals").document(body.request_id)
+    
+    if not doc_ref.get().exists:
+        raise HTTPException(status_code=404, detail="Không tìm thấy yêu cầu rút tiền này")
+        
+    doc_ref.update({
+        "status": body.status,
+        "updated_at": datetime.now()
+    })
+    return {"success": True, "message": "Cập nhật trạng thái thành công"}
+
+# Lấy lịch sử đơn hàng của 1 user
+@app.get("/api/user/history")
+def get_user_history(email: str, request: Request):
+    # Lấy conversions của email đó
+    conversions = db.collection("conversions").where("user_email", "==", email).order_by("created_at", direction=firestore.Query.DESCENDING).stream()
+    
+    return {
+        "success": True,
+        "orders": [doc.to_dict() for doc in conversions]
+    }
+
+# Lấy thông tin ví của 1 user
+@app.get("/api/user/wallet")
+def get_user_wallet(email: str, request: Request):
+    conversions = db.collection("conversions").where("user_email", "==", email).stream()
+    
+    total_balance = 0
+    for doc in conversions:
+        data = doc.to_dict()
+        total_balance += data.get("cashback", 0)
+        
+    return {
+        "success": True,
+        "balance": total_balance
+    }
 
 if __name__ == "__main__":
     import uvicorn
