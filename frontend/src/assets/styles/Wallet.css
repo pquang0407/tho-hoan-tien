@@ -106,10 +106,46 @@
 }
 
 /* Responsive */
-@media (max-width: 768px) {
+@media (max-width:768px) {
+
+    .wallet-page {
+        padding: 0;
+    }
+
+    .page-title {
+        font-size: 28px;
+        margin-bottom: 20px;
+    }
+
     .wallet-grid {
         grid-template-columns: 1fr;
+        gap: 18px;
     }
+
+    .wallet-main-card {
+        padding: 24px !important;
+        border-radius: 24px !important;
+    }
+
+    .wallet-main-card h1 {
+        font-size: 38px;
+    }
+
+    .withdrawal-form {
+        padding: 24px !important;
+        border-radius: 24px !important;
+    }
+
+    .withdrawal-form input,
+    .wallet-select {
+        padding: 15px;
+        font-size: 15px;
+    }
+
+    .btn-bubbly-primary {
+        padding: 16px;
+    }
+
 }
 
 .wallet-select {

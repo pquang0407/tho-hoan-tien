@@ -652,84 +652,116 @@ h4 {
 }
 
 /* --- RESPONSIVE --- */
-@media (max-width: 850px) {
+@media (max-width:768px) {
+
+    .about-container {
+        padding-bottom: 30px;
+    }
+
     .about-navbar {
-        padding: 16px 20px;
-        border-radius: 0 0 20px 20px;
+        padding: 12px 16px;
+    }
+
+    .navbar-logo {
+        font-size: 18px;
+    }
+
+    .user-info-nav {
+        display: none;
     }
 
     .hero-split {
         flex-direction: column;
-        text-align: center;
-        padding: 40px 20px;
-        margin: 0 10px 40px 10px;
-        border-radius: 30px;
+        padding: 28px 18px;
+        margin: 10px;
+        border-radius: 24px;
     }
 
     .hero-title-bubbly {
-        font-size: 38px;
+        font-size: 30px;
+        text-align: center;
+    }
+
+    .hero-text-soft {
+        font-size: 15px;
+        text-align: center;
+    }
+
+    .hero-rabbit {
+        width: 220px;
+        transform: none;
     }
 
     .action-group {
-        justify-content: center;
         flex-direction: column;
     }
 
-    .giant-btn {
+    .btn-bubbly-primary,
+    .btn-bubbly-outline {
         width: 100%;
+    }
+
+    .header-center h2 {
+        font-size: 26px;
     }
 
     .bento-grid {
         grid-template-columns: 1fr;
     }
 
+    .bento-card {
+        padding: 26px;
+    }
+
+    .bento-card h3 {
+        font-size: 32px;
+    }
+
     .timeline-container::after {
-        left: 35px;
+        left: 24px;
     }
 
     .timeline-item {
-        width: 100% !important;
-        padding: 10px 20px 30px 90px !important;
-    }
-
-    .timeline-item.left,
-    .timeline-item.right {
+        width: 100%;
+        padding: 0 0 30px 60px !important;
         left: 0 !important;
     }
 
-    .timeline-item.left .timeline-dot,
-    .timeline-item.right .timeline-dot {
-        left: 11px !important;
-        right: auto !important;
+    .timeline-dot {
+        width: 36px;
+        height: 36px;
+        left: 6px !important;
+        font-size: 16px;
+    }
+
+    .bubble-card {
+        padding: 22px;
     }
 
     .podium-cute {
         flex-direction: column;
+        gap: 50px;
         height: auto;
-        align-items: center;
-        gap: 60px;
-        margin-top: 60px;
     }
 
     .podium-stand {
         width: 100%;
         height: auto !important;
-        padding-bottom: 40px;
-    }
-
-    .podium-stand.gold {
-        order: -1;
-        /* Cho hạng 1 lên đầu trên mobile */
+        padding: 40px 20px 20px;
     }
 
     .cta-bubble-section {
-        margin: 0 10px;
-        padding: 50px 20px;
-        border-radius: 30px;
+        margin: 10px;
+        border-radius: 24px;
+        padding: 40px 18px;
     }
 
     .cta-bubble-content h2 {
-        font-size: 32px;
+        font-size: 28px;
+    }
+
+    .cta-bubble-content p {
+        font-size: 16px;
     }
 }
 

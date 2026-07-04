@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { auth } from "../firebase";
 import { signOut } from "firebase/auth";
@@ -7,7 +7,23 @@ import "../assets/styles/DashboardLayout.css";
 const DashboardLayout = ({ children, user }) => {
     const location = useLocation();
     const navigate = useNavigate();
-    const [isCollapsed, setIsCollapsed] = useState(true); // Mặc định thu gọn
+    const [isCollapsed, setIsCollapsed] = useState(
+        window.innerWidth > 900
+    );
+
+    useEffect(() => {
+        const resize = () => {
+            if (window.innerWidth <= 900) {
+                setIsCollapsed(false);
+            }
+        };
+
+        resize();
+
+        window.addEventListener("resize", resize);
+
+        return () => window.removeEventListener("resize", resize);
+    }, []);
 
     const handleLogout = async () => {
         try {
