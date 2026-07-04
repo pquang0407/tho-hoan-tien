@@ -113,15 +113,25 @@ def get_firebase_summary():
         "users": len(emails)
     }
 
-def get_dashboard_analytics():
-    conversions = [doc.to_dict() for doc in db.collection("conversions").stream()]
+def get_dashboard_analytics(orders):
+
+    conversions = [
+        doc.to_dict()
+        for doc in db.collection("conversions").stream()
+    ]
+
+    report = get_at_orders()
+    orders = report["data"]
+
     today = datetime.now().date()
     week_ago = today - timedelta(days=6)
-    
+
     daily_links = defaultdict(int)
-    user_cashback = defaultdict(float)
-    product_counter = Counter()
     first_seen = {}
+    product_counter = Counter()
+
+    user_cashback = defaultdict(float)
+
     today_links = 0
     
     for item in conversions:
@@ -141,22 +151,43 @@ def get_dashboard_analytics():
         # Thống kê 7 ngày
         if created >= week_ago:
             daily_links[str(created)] += 1
+
         if created == today:
             today_links += 1
-            
+
         email = item.get("user_email")
+
         if email:
-            user_cashback[email] += item.get("cashback", 0)
+
             if email not in first_seen or created < first_seen[email]:
                 first_seen[email] = created
-                
-        product = item.get("product_name")
-        platform = item.get("platform", "shopee")
-        if product:
-            product_counter[(product, platform)] += 1
 
-    new_users = sum(1 for d in first_seen.values() if d >= week_ago)
+        product = item.get("product_name")
+
+        platform = item.get("platform","tiktok")
+
+        if product:
+            product_counter[(product,platform)] += 1
+
+    for order in orders:
+
+        if order["order_approved"] <= 0:
+            continue
+
+        email = order.get("utm_source")
+
+        if not email:
+            continue
+
+        cashback = float(order["pub_commission"]) * 0.8
+
+        user_cashback[email] += cashback
     
+    new_users = sum(
+        1
+        for d in first_seen.values()
+        if d >= week_ago
+    )
     chart = []
     for i in range(7):
         d = week_ago + timedelta(days=i)
@@ -260,13 +291,21 @@ async def convert_link(request: Request, body: LinkRequest):
     })
 
     db.collection("conversions").add({
-        "user_email": body.user_email, "original_url": body.original_url,
-        "platform": body.platform, "product_name": product_name,
-        "product_price": product_price, "commission": commission,
-        "cashback": cashback, "publisher_income": publisher_income,
-        "short_link": short_link, "aff_link": aff_link, "created_at": datetime.now()
-    })
+        "user_email": body.user_email,
+        "original_url": body.original_url,
+        "platform": body.platform,
 
+        "product_name": product_name,
+        "product_price": product_price,
+
+        "short_link": short_link,
+        "aff_link": aff_link,
+
+        "created_at": datetime.now(),
+
+        # chỉ để hiển thị lúc chưa có order
+        "status": "link_created"
+    })
     return {
         "success": True,
         "product": {"name": product_name, "image": product_image, "price": product_price},
@@ -283,7 +322,7 @@ def admin_reports(request: Request):
     verify_admin(request)
     report = get_at_orders()
     firebase = get_firebase_summary()
-    analytics = get_dashboard_analytics()
+    analytics = get_dashboard_analytics(orders)
 
     orders = report.get("data", [])
     total_orders = len(orders)
@@ -351,13 +390,45 @@ def admin_reports(request: Request):
 @app.post("/api/withdrawals")
 @limiter.limit("5/minute")
 async def create_withdrawal(request: Request, body: WithdrawalRequest):
+    wallet = get_user_wallet(body.user_email)
+    pending_request = db.collection("withdrawals")\
+    .where("user_email","==",body.user_email)\
+    .where("status","==","pending")\
+    .stream()
+
+    pending_amount = sum(
+        w.to_dict()["amount"]
+        for w in pending_request
+    )
+
+    if body.amount > wallet["balance"] - pending_amount:
+
+        raise HTTPException(
+            status_code=400,
+            detail="Số dư khả dụng không đủ."
+        )
+
+    if body.amount < 100000:
+
+        raise HTTPException(
+            status_code=400,
+            detail="Rút tối thiểu 100.000đ"
+        )
     """User gửi yêu cầu rút tiền"""
     db.collection("withdrawals").add({
+
         "user_email": body.user_email,
+
         "amount": body.amount,
+
         "bank_info": body.bank_info,
+
         "status": "pending",
+
+        "available_balance": wallet["balance"],
+
         "created_at": datetime.now()
+
     })
     return {"success": True, "message": "Yêu cầu rút tiền đã được gửi thành công!"}
 
@@ -405,28 +476,110 @@ def update_withdrawal(request: Request, body: WithdrawalUpdate):
 
 # Lấy lịch sử đơn hàng của 1 user
 @app.get("/api/user/history")
-def get_user_history(email: str, request: Request):
-    # Lấy conversions của email đó
-    conversions = db.collection("conversions").where("user_email", "==", email).order_by("created_at", direction=firestore.Query.DESCENDING).stream()
-    
-    return {
-        "success": True,
-        "orders": [doc.to_dict() for doc in conversions]
+def get_user_history(email:str):
+
+    report = get_at_orders()
+
+    result=[]
+
+    for order in report["data"]:
+
+        if order.get("utm_source")!=email:
+            continue
+
+        cashback=float(order["pub_commission"])*0.8
+
+        if order["order_approved"]>0:
+
+            status="approved"
+
+        elif order["order_reject"]>0:
+
+            status="rejected"
+
+        else:
+
+            status="pending"
+
+        result.append({
+
+            "order_id":order["order_id"],
+
+            "merchant":order["merchant"],
+
+            "amount":order["billing"],
+
+            "cashback":round(cashback),
+
+            "status":status,
+
+            "time":order["sales_time"]
+
+        })
+
+    result.sort(
+        key=lambda x:x["time"],
+        reverse=True
+    )
+
+    return{
+
+        "success":True,
+
+        "orders":result
     }
 
 # Lấy thông tin ví của 1 user
 @app.get("/api/user/wallet")
-def get_user_wallet(email: str, request: Request):
-    conversions = db.collection("conversions").where("user_email", "==", email).stream()
-    
-    total_balance = 0
-    for doc in conversions:
-        data = doc.to_dict()
-        total_balance += data.get("cashback", 0)
-        
+def get_user_wallet(email: str):
+
+    report = get_at_orders()
+
+    balance = 0
+
+    pending = 0
+
+    withdrawn = 0
+
+    for order in report["data"]:
+
+        if order.get("utm_source") != email:
+            continue
+
+        cashback = float(order["pub_commission"]) * 0.8
+
+        if order["order_approved"] > 0:
+
+            balance += cashback
+
+        elif order["order_reject"] > 0:
+
+            pass
+
+        else:
+
+            pending += cashback
+
+    withdrawals = db.collection("withdrawals")\
+        .where("user_email","==",email)\
+        .where("status","==","approved")\
+        .stream()
+
+    for w in withdrawals:
+        withdrawn += w.to_dict()["amount"]
+
+    balance -= withdrawn
+    balance = max(balance, 0)
+
     return {
-        "success": True,
-        "balance": total_balance
+
+        "success":True,
+
+        "balance":round(balance),
+
+        "pending":round(pending),
+
+        "withdrawn":round(withdrawn)
     }
 
 if __name__ == "__main__":
