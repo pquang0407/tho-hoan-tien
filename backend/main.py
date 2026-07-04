@@ -419,7 +419,7 @@ def get_user_history(email: str, request: Request):
 def get_user_wallet(email: str, request: Request):
     conversions = db.collection("conversions").where("user_email", "==", email).stream()
     
-    total_balance = 500000
+    total_balance = 0
     for doc in conversions:
         data = doc.to_dict()
         total_balance += data.get("cashback", 0)
