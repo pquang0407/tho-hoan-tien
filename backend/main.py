@@ -113,7 +113,7 @@ def get_firebase_summary():
 
 def get_dashboard_analytics(orders):
     conversions = [doc.to_dict() for doc in db.collection("conversions").stream()]
-    today = datetime.now(timezone.utc) + timedelta(hours=7) # Chuyển về giờ VN
+    today = datetime.now(timezone.utc) + timedelta(hours=7)
     today_date = today.date()
     week_ago = today_date - timedelta(days=6)
     
@@ -134,11 +134,8 @@ def get_dashboard_analytics(orders):
                 except: pass
                 
         if not doc_date: continue
-                
-        if doc_date >= week_ago:
-            daily_links[str(doc_date)] += 1
-        if doc_date == today_date:
-            today_links += 1
+        if doc_date >= week_ago: daily_links[str(doc_date)] += 1
+        if doc_date == today_date: today_links += 1
             
         email = item.get("user_email")
         if email and (email not in first_seen or doc_date < first_seen[email]):
@@ -146,11 +143,9 @@ def get_dashboard_analytics(orders):
             
         product = item.get("product_name")
         platform = item.get("platform", "tiktok")
-        if product:
-            product_counter[(product, platform)] += 1
+        if product: product_counter[(product, platform)] += 1
 
     for order in orders:
-        # XÓA BỎ DÒNG BỎ QUA ĐƠN PENDING Ở ĐÂY ĐỂ TÍNH ĐỦ DOANH THU PHÁT SINH
         email = order.get("utm_source")
         if not email: continue
         cashback = float(order.get("pub_commission", 0)) * user_ratio
@@ -169,12 +164,15 @@ def get_dashboard_analytics(orders):
 
 def get_at_orders():
     headers = {"Authorization": f"Token {AT_API_KEY}"}
-    until = datetime.now(timezone.utc)
-    since = until - timedelta(days=REPORT_DAYS)
+    # Fix triệt để lỗi lệch múi giờ: Lấy từ 60 ngày trước đến hết ngày mai
+    now = datetime.now()
+    since = (now - timedelta(days=60)).strftime("%Y-%m-%dT00:00:00Z")
+    until = (now + timedelta(days=1)).strftime("%Y-%m-%dT23:59:59Z")
+    
     params = {
-        "since": since.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "until": until.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "limit": 100
+        "since": since,
+        "until": until,
+        "limit": 500 # Tăng limit để lấy tối đa
     }
     response = requests.get(
         "https://api.accesstrade.vn/v1/order-list",
@@ -184,7 +182,8 @@ def get_at_orders():
     )
     try:
         response.raise_for_status()
-    except requests.RequestException:
+    except requests.RequestException as e:
+        print("Lỗi call AT:", e)
         raise HTTPException(status_code=500, detail="Không lấy được dữ liệu AccessTrade")
     return response.json()
 
@@ -314,6 +313,7 @@ def admin_reports(request: Request):
     
     total_orders = len(orders)
     total_commission = 0
+    total_sales = 0
     net_profit = 0
     result = []
     
@@ -321,13 +321,15 @@ def admin_reports(request: Request):
     
     for item in orders:
         commission = float(item.get("pub_commission", 0))
-        # TÍNH TỔNG TẤT CẢ HOA HỒNG (CẢ CHỜ DUYỆT) CHO GIỐNG DASHBOARD ACCESSTRADE
+        sales = float(item.get("billing", 0))
+        
         total_commission += commission 
+        total_sales += sales
+        net_profit += commission * admin_ratio 
         
         if item.get("order_approved", 0) > 0:
             status = 1
             approved_count += 1
-            net_profit += commission * admin_ratio # Chỉ tính lợi nhuận net khi đã duyệt
         elif item.get("order_reject", 0) > 0:
             status = 2
             reject_count += 1
@@ -339,7 +341,7 @@ def admin_reports(request: Request):
             "order_id": item.get("order_id"),
             "order_time": item.get("sales_time"),
             "campaign_name": item.get("merchant"),
-            "sales_amount": item.get("billing"),
+            "sales_amount": sales,
             "pub_commission": commission,
             "order_status": status
         })
@@ -350,6 +352,7 @@ def admin_reports(request: Request):
         "summary": {
             "conversions": total_orders,
             "total_commission": round(total_commission),
+            "total_sales": round(total_sales),
             "net_profit": round(net_profit),
             "generated_links": firebase["generated_links"],
             "users": firebase["users"], "logs": firebase["logs"]
