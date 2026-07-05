@@ -409,7 +409,7 @@ async def create_withdrawal(request: Request, body: WithdrawalRequest):
             detail="Số dư khả dụng không đủ."
         )
 
-    if body.amount < 100000:
+    if body.amount <= 100000:
 
         raise HTTPException(
             status_code=400,
