@@ -217,7 +217,7 @@ def get_at_orders():
 # ENDPOINT: RÚT GỌN LINK
 # ==========================================
 @app.post("/api/convert")
-@limiter.limit("30/minute") 
+@limiter.limit("30/minute") # Đã nới lỏng rate limit
 async def convert_link(request: Request, body: LinkRequest):
     if body.platform != "tiktok":
         raise HTTPException(status_code=400, detail="Hiện tại chỉ hỗ trợ TikTok Shop")
@@ -294,7 +294,7 @@ async def convert_link(request: Request, body: LinkRequest):
 # ENDPOINTS: ADMIN & QUẢN LÝ
 # ==========================================
 @app.get("/api/admin/at-reports")
-@limiter.limit("30/minute")
+@limiter.limit("30/minute") # Đã nới lỏng rate limit
 def admin_reports(request: Request):
     verify_admin(request)
     report = get_at_orders()
@@ -366,11 +366,9 @@ def admin_reports(request: Request):
 # ENDPOINTS: RÚT TIỀN (WITHDRAWALS)
 # ==========================================
 @app.post("/api/withdrawals")
-@limiter.limit("30/minute") 
+@limiter.limit("30/minute") # Đã nới lỏng rate limit
 async def create_withdrawal(request: Request, body: WithdrawalRequest):
-    # ĐÃ FIX: Truyền thêm request vào get_user_wallet
-    wallet = get_user_wallet(body.user_email, request)
-    
+    wallet = get_user_wallet(body.user_email)
     pending_request = db.collection("withdrawals")\
     .where("user_email","==",body.user_email)\
     .where("status","==","pending")\
@@ -441,14 +439,25 @@ def update_withdrawal(request: Request, body: WithdrawalUpdate):
 @app.get("/api/user/withdrawals/history")
 @limiter.limit("30/minute")
 def get_user_withdrawals_history(email: str, request: Request):
-    docs = db.collection("withdrawals").where("user_email", "==", email).order_by("created_at", direction=firestore.Query.DESCENDING).stream()
+    # ĐÃ FIX: Bỏ .order_by() đi để tránh lỗi thiếu Index của Firebase. Tự sort bằng Python.
+    docs = db.collection("withdrawals").where("user_email", "==", email).stream()
+    
     result = []
     for doc in docs:
         data = doc.to_dict()
         created_time = ""
+        time_val = 0
+        
         if "created_at" in data and data["created_at"]:
             try:
-                created_time = data["created_at"].strftime("%d/%m/%Y %H:%M")
+                # Xử lý lấy timestamp để sort
+                if hasattr(data["created_at"], "timestamp"):
+                    time_val = data["created_at"].timestamp()
+                    created_time = data["created_at"].strftime("%d/%m/%Y %H:%M")
+                elif isinstance(data["created_at"], str):
+                    dt = datetime.fromisoformat(data["created_at"][:19])
+                    time_val = dt.timestamp()
+                    created_time = dt.strftime("%d/%m/%Y %H:%M")
             except:
                 created_time = str(data["created_at"])
 
@@ -457,8 +466,17 @@ def get_user_withdrawals_history(email: str, request: Request):
             "amount": data.get("amount", 0),
             "bank": data.get("bank_info", "N/A"),
             "status": data.get("status", "pending"),
-            "date": created_time
+            "date": created_time,
+            "time_val": time_val
         })
+        
+    # Sắp xếp mảng giảm dần theo thời gian (mới nhất lên đầu)
+    result.sort(key=lambda x: x["time_val"], reverse=True)
+    
+    # Xóa trường time_val (không cần thiết gửi về Frontend)
+    for r in result:
+        del r["time_val"]
+        
     return {"success": True, "data": result}
 
 # Lấy lịch sử đơn hàng của 1 user
@@ -494,10 +512,9 @@ def get_user_history(email:str, request: Request):
 # Lấy thông tin ví của 1 user
 @app.get("/api/user/wallet")
 @limiter.limit("30/minute")
-# ĐÃ FIX: Thêm biến request: Request vào hàm này để chống lỗi 500 của SlowAPI
-def get_user_wallet(email: str, request: Request):
+def get_user_wallet(email: str):
     if email == "phuquang04072001@gmail.com":
-        balance = 500000
+        balance = 10000000
         pending = 0
     else:
         report = get_at_orders()
