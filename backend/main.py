@@ -28,7 +28,7 @@ LAZADA_CAMPAIGN_ID = ""
 # Tài khoản admin
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL")
 
-cashback_percent = 80
+cashback_percent = 70
 REPORT_DAYS = 30
 REQUEST_TIMEOUT = 15
 
@@ -176,7 +176,7 @@ def get_dashboard_analytics(orders):
         if not email:
             continue
 
-        cashback = float(order["pub_commission"]) * 0.8
+        cashback = float(order["pub_commission"]) * 0.7
 
         user_cashback[email] += cashback
     
@@ -278,8 +278,8 @@ async def convert_link(request: Request, body: LinkRequest):
     commission_info = data.get("product_commission", {})
     commission = float(commission_info.get("amount", 0))
 
-    cashback = round(commission * 0.8)
-    publisher_income = round(commission * 0.2)
+    cashback = round(commission * 0.7)
+    publisher_income = round(commission * 0.3)
     client_ip = request.client.host
 
     db.collection("logs").add({
@@ -339,7 +339,7 @@ def admin_reports(request: Request):
 
         if approved:
             total_commission += commission
-            net_profit += commission * 0.2
+            net_profit += commission * 0.3
 
         if item["order_approved"] > 0:
             status = 1
@@ -486,7 +486,7 @@ def get_user_history(email:str):
         if order.get("utm_source")!=email:
             continue
 
-        cashback=float(order["pub_commission"])*0.8
+        cashback=float(order["pub_commission"])*0.7
 
         if order["order_approved"]>0:
 
@@ -548,7 +548,7 @@ def get_user_wallet(email: str):
             if order.get("utm_source") != email:
                 continue
 
-            cashback = float(order["pub_commission"]) * 0.8
+            cashback = float(order["pub_commission"]) * 0.7
 
             if order["order_approved"] > 0:
                 balance += cashback
