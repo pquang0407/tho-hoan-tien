@@ -27,6 +27,7 @@ LAZADA_CAMPAIGN_ID = ""
 
 # Tài khoản admin
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL")
+ADMIN_EMAIL2 = os.getenv("ADMIN_EMAIL2")
 cashback_percent = 70
 user_ratio = 0.7
 admin_ratio = 0.3
@@ -156,7 +157,7 @@ def verify_admin(request: Request):
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid token")
     email = decoded.get("email")
-    if email != ADMIN_EMAIL:
+    if email != ADMIN_EMAIL and email != ADMIN_EMAIL2:
         raise HTTPException(status_code=403, detail="Forbidden")
     return decoded
 
