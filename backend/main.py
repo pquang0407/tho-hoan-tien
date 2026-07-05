@@ -285,7 +285,9 @@ async def convert_link(request: Request, body: LinkRequest):
     }
     response = requests.post(
         "https://api.accesstrade.vn/v2/tiktokshop_product_feeds/create_link",
-        headers=headers, json=payload
+        headers=headers,
+        json=payload,
+        timeout=REQUEST_TIMEOUT
     )
     if response.status_code != 200:
         raise HTTPException(status_code=500, detail="Không thể kết nối AccessTrade")
@@ -313,7 +315,7 @@ async def convert_link(request: Request, body: LinkRequest):
 
     db.collection("logs").add({
         "ip": client_ip, "email": body.user_email, "platform": body.platform,
-        "url": body.original_url, "product_name": product_name, "created_at": datetime.now()
+        "url": body.original_url, "product_name": product_name, "created_at": firestore.SERVER_TIMESTAMP
     })
     db.collection("conversions").add({
         "user_email": body.user_email,
@@ -323,7 +325,7 @@ async def convert_link(request: Request, body: LinkRequest):
         "product_price": product_price,
         "short_link": short_link,
         "aff_link": aff_link,
-        "created_at": datetime.now(),
+        "created_at": firestore.SERVER_TIMESTAMP,
         "status": "link_created"
     })
     return {
@@ -363,22 +365,22 @@ def admin_reports(request: Request):
         total_sales += sales
         net_profit += commission * admin_ratio 
         
-        if item.get("confirmed")==1:
+        if item.get("confirmed") == 1:
+            status = 1
             approved_count += 1
-            status=1
 
-        elif item.get("status")==2:
+        elif item.get("status") == 2:
+            status = 2
             reject_count += 1
-            status=2
 
         else:
+            status = 0
             pending_count += 1
-            status=0
             
         result.append({
             "order_id": item.get("order_id"),
             "order_time": item.get("sales_time"),
-            "campaign_name"=item.get("campaign_id"),
+            "campaign_name" : item.get("campaign_id"),
             "sales_amount": sales,
             "pub_commission": commission,
             "order_status": status
@@ -427,7 +429,7 @@ async def create_withdrawal(request: Request, body: WithdrawalRequest):
         "bank_info": body.bank_info,
         "status": "pending",
         "balance_at_request": wallet["balance"],
-        "created_at": datetime.now()
+        "created_at": firestore.SERVER_TIMESTAMP
     })
     return {"success": True, "message": "Yêu cầu rút tiền đã được gửi thành công!"}
 
