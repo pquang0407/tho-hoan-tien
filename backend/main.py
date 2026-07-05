@@ -388,15 +388,15 @@ def admin_reports(request: Request):
             status = 0
             pending_count += 1
             
-    result.append({
-        "order_id": item.get("order_id"),
-        "order_time": item.get("sales_time"),
-        "campaign_name": item.get("campaign_id"),
-        "sales_amount": sales,
-        "pub_commission": commission,
-        "order_status": status,
-        "utm_source": item.get("utm_source", "")
-    })
+        result.append({
+            "order_id": item.get("order_id"),
+            "order_time": item.get("sales_time"),
+            "campaign_name": item.get("campaign_id"),
+            "sales_amount": sales,
+            "pub_commission": commission,
+            "order_status": status,
+            "utm_source": item.get("utm_source", "")
+        })
         
     result.sort(key=lambda x: x["order_time"], reverse=True)
     return {
