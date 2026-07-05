@@ -83,12 +83,17 @@ class WithdrawalUpdate(BaseModel):
 # CÁC HÀM TIỆN ÍCH (UTILS)
 # ==========================================
 
+@app.post("/api/postback")
 @app.get("/api/postback")
 async def accesstrade_postback(request: Request):
 
-    p = dict(request.query_params)
-    
+    print("===== POSTBACK =====")
+    print(request.method)
 
+    p = dict(request.query_params)
+
+    print(p)
+    
     db.collection("orders").document(
         p["transaction_id"]
     ).set({
