@@ -83,16 +83,20 @@ class WithdrawalUpdate(BaseModel):
 # CÁC HÀM TIỆN ÍCH (UTILS)
 # ==========================================
 
-@app.post("/api/postback")
-@app.get("/api/postback")
+@app.api_route("/api/postback", methods=["GET","POST"])
 async def accesstrade_postback(request: Request):
-
-    print("===== POSTBACK =====")
-    print(request.method)
 
     p = dict(request.query_params)
 
     print(p)
+
+    transaction_id = p.get("transaction_id")
+
+    if not transaction_id:
+        return {
+            "success": True,
+            "message": "endpoint ok"
+        }
     
     db.collection("orders").document(
         p["transaction_id"]
@@ -140,23 +144,6 @@ async def accesstrade_postback(request: Request):
     return {
         "success": True
     }
-
-@app.api_route("/api/postback", methods=["GET","POST"])
-async def accesstrade_postback(request: Request):
-
-    print("========== POSTBACK ==========")
-
-    print("Method:", request.method)
-
-    print("Headers:", dict(request.headers))
-
-    print("Query:", dict(request.query_params))
-
-    body = await request.body()
-
-    print("Body:", body)
-
-    return {"success": True}
 
 def verify_admin(request: Request):
     auth_header = request.headers.get("Authorization")
