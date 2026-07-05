@@ -57,6 +57,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "https://tho-hoan-tien.vercel.app",
+        "https://www.tho-hoantien.com",
+        "https://tho-hoantien.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
