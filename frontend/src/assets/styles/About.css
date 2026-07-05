@@ -573,7 +573,7 @@ h4 {
     padding: 70px 20px;
     text-align: center;
     color: white;
-    margin: 0 20px;
+    margin: 0 0px;
     box-shadow: 0 25px 50px rgba(236, 72, 153, 0.25);
 }
 
@@ -587,7 +587,7 @@ h4 {
 .cta-bubble-content p {
     font-size: 20px;
     opacity: 0.95;
-    margin-bottom: 40px;
+    margin-bottom: 20px;
     font-weight: 500;
 }
 

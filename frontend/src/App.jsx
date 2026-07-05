@@ -10,6 +10,7 @@ import Admin from "./pages/Admin";
 
 import History from "./pages/History";
 import Wallet from "./pages/Wallet";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 
 import DashboardLayout from "./components/DashboardLayout";
 
@@ -113,7 +114,7 @@ function App() {
           path="*"
           element={<Navigate to="/" replace />}
         />
-
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       </Routes>
     </BrowserRouter>
   );

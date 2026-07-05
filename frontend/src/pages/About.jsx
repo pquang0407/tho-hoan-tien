@@ -169,11 +169,19 @@ const About = ({ user }) => {
                     >
                         Tham gia hang thỏ ngay ➔
                     </button>
+                    {/* --- FOOTER CHÍNH SÁCH --- */}
+                    <footer style={{ textAlign: 'center', padding: '30px', marginTop: '20px', fontSize: '14px', color: '#ffffffff' }}>
+                        <span style={{ cursor: 'pointer', fontWeight: 600 }} onClick={() => navigate("/privacy-policy")}>
+                            Chính sách bảo mật & Điều khoản sử dụng
+                        </span>
+                    </footer>
                 </div>
+
             </section>
             <>
                 <FloatingCarrots />
             </>
+
         </div>
     );
 };

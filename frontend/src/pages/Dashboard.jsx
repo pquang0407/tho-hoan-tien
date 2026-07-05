@@ -178,7 +178,7 @@ const Dashboard = ({ user }) => {
                             <div className="estimate-left">
                                 <span className="estimate-label">Hoa hồng dự kiến ⓘ</span>
                                 <div className="estimate-amount">
-                                    Lên đến {result.commission.cashback.toLocaleString()}đ
+                                    ≈ {result.commission.cashback.toLocaleString()} VNĐ
                                 </div>
                                 <div className="original-price">
                                     Giá sản phẩm: {result.product.price.toLocaleString()}đ

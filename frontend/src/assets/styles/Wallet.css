@@ -168,3 +168,56 @@
     outline: none;
     background: white;
 }
+
+/* --- WALLET HISTORY TABLE --- */
+.wallet-history-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    text-align: left;
+}
+
+.wallet-history-table th {
+    padding: 16px;
+    font-size: 13px;
+    font-weight: 800;
+    color: #94a3b8;
+    text-transform: uppercase;
+    border-bottom: 2px solid #f1f5f9;
+    white-space: nowrap;
+}
+
+.wallet-history-table td {
+    padding: 18px 16px;
+    border-bottom: 1px solid #f8fafc;
+    vertical-align: middle;
+}
+
+.wallet-history-table tr:hover td {
+    background-color: #fdfdfe;
+}
+
+/* Các nhãn trạng thái (Status Badges) */
+.status-badge {
+    padding: 8px 14px;
+    border-radius: 50px;
+    font-size: 13px;
+    font-weight: 700;
+    display: inline-block;
+    white-space: nowrap;
+}
+
+.status-badge.pending {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.status-badge.approved {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.status-badge.rejected {
+    background: #fee2e2;
+    color: #be123c;
+}

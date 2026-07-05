@@ -1,26 +1,33 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../assets/styles/Login.css";
 import FloatingCarrots from "../components/FloatingCarrots";
 import { auth } from "../firebase";
-
-import {
-    GoogleAuthProvider,
-    signInWithPopup
-} from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 const Login = () => {
     const navigate = useNavigate();
+    const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
+    const [isAgreed, setIsAgreed] = useState(false);
+
     const handleGoogleLogin = async () => {
+        if (!isAgreed) return; // Bảo vệ 2 lớp
         try {
             const provider = new GoogleAuthProvider();
-
             await signInWithPopup(auth, provider);
-
             navigate("/");
         } catch (error) {
             console.error(error);
             alert("Đăng nhập thất bại!");
+        }
+    };
+
+    // Hàm kiểm tra User đã cuộn xuống cuối chưa
+    const handleScroll = (e) => {
+        const { scrollTop, scrollHeight, clientHeight } = e.target;
+        // Cộng thêm 2px sai số làm tròn của một số trình duyệt
+        if (scrollTop + clientHeight >= scrollHeight - 2) {
+            setHasScrolledToBottom(true);
         }
     };
 
@@ -50,11 +57,7 @@ const Login = () => {
             {/* --- NỬA PHẢI: FORM ĐĂNG NHẬP --- */}
             <div className="login-right">
                 <div className="back-link-wrapper">
-                    {/* Quay lại About */}
-                    <a href="#" className="back-link bubbly-hover" onClick={(e) => {
-                        e.preventDefault();
-                        navigate("/");
-                    }}>
+                    <a href="#" className="back-link bubbly-hover" onClick={(e) => { e.preventDefault(); navigate("/"); }}>
                         <span className="back-arrow">←</span> Về trang giới thiệu
                     </a>
                 </div>
@@ -62,10 +65,44 @@ const Login = () => {
                 <div className="login-card slide-up">
                     <div className="login-header">
                         <h2>Đăng nhập với Google 🌸</h2>
-                        <p>Chỉ cần một lần nhấn để bắt đầu nhặt cà rốt.</p>
+                        <p>Vui lòng đọc điều khoản để bắt đầu nhặt cà rốt.</p>
                     </div>
 
-                    <button className="btn-google full-width bubbly-hover" type="button" onClick={handleGoogleLogin}>
+                    {/* --- KHUNG CHÍNH SÁCH BẢO MẬT CUỘN ĐƯỢC --- */}
+                    <div className={`policy-scroll-box ${hasScrolledToBottom ? 'scrolled' : ''}`} onScroll={handleScroll}>
+                        <strong>Chính sách bảo mật Thỏ Hoàn Tiền</strong>
+                        <p>1. <b>Mục đích:</b> Chúng tôi là công cụ hỗ trợ chuyển đổi liên kết affiliate để ghi nhận hoa hồng mua sắm.</p>
+                        <p>2. <b>Thu thập dữ liệu:</b> Lưu email, ảnh đại diện Google, và lịch sử tạo link/đơn hàng của bạn.</p>
+                        <p>3. <b>Chia sẻ & Bảo mật:</b> Chúng tôi cam kết KHÔNG bán dữ liệu cá nhân. Thông tin chỉ dùng để vận hành trả thưởng và đối soát với sàn thương mại điện tử.</p>
+                        <p>4. <b>Quyền lợi:</b> Bằng việc sử dụng hệ thống, bạn hiểu rõ hoa hồng là số tiền ước tính và sẽ được thanh toán sau khi sàn duyệt thành công.</p>
+                        <br />
+                        <p style={{ textAlign: 'center', fontWeight: 'bold', color: '#f27b8a' }}><i>(Bạn đã đọc hết nội dung)</i></p>
+                    </div>
+
+                    {/* --- CHECKBOX XÁC NHẬN --- */}
+                    <div className={`checkbox-wrapper ${!hasScrolledToBottom ? 'disabled' : ''}`}>
+                        <input
+                            type="checkbox"
+                            id="agreeCheck"
+                            disabled={!hasScrolledToBottom}
+                            checked={isAgreed}
+                            onChange={(e) => setIsAgreed(e.target.checked)}
+                        />
+                        <label htmlFor="agreeCheck">
+                            Tôi đã đọc và đồng ý với
+                            <span style={{ color: 'var(--orange-primary)', cursor: 'pointer', marginLeft: '4px' }} onClick={() => navigate("/privacy-policy")}>
+                                Chính sách bảo mật
+                            </span>
+                        </label>
+                    </div>
+
+                    {/* --- NÚT ĐĂNG NHẬP --- */}
+                    <button
+                        className={`btn-google full-width bubbly-hover ${!isAgreed ? 'btn-disabled' : ''}`}
+                        type="button"
+                        onClick={handleGoogleLogin}
+                        disabled={!isAgreed}
+                    >
                         <svg className="google-icon bouncing-soft" width="22" height="22" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
                             <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
                             <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
@@ -74,11 +111,15 @@ const Login = () => {
                         </svg>
                         Đăng nhập bằng Google
                     </button>
+
+                    {!hasScrolledToBottom && (
+                        <p style={{ fontSize: '12px', color: '#e11d48', marginTop: '12px', fontWeight: '600' }}>
+                            * Vui lòng cuộn đọc hết chính sách phía trên để Đăng nhập.
+                        </p>
+                    )}
                 </div>
             </div>
-            <>
-                <FloatingCarrots />
-            </>
+            <FloatingCarrots />
         </div>
     );
 };
