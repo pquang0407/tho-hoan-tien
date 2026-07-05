@@ -164,27 +164,33 @@ def get_dashboard_analytics(orders):
 
 def get_at_orders():
     headers = {"Authorization": f"Token {AT_API_KEY}"}
-    # Fix triệt để lỗi lệch múi giờ: Lấy từ 60 ngày trước đến hết ngày mai
-    now = datetime.now()
-    since = (now - timedelta(days=60)).strftime("%Y-%m-%dT00:00:00Z")
-    until = (now + timedelta(days=1)).strftime("%Y-%m-%dT23:59:59Z")
+    
+    # FIX LỖI 500: AccessTrade chỉ cho phép query tối đa 30 ngày và không được lấy thời gian tương lai
+    now = datetime.now(timezone.utc)
+    since = (now - timedelta(days=30)).strftime("%Y-%m-%dT00:00:00Z")
+    until = now.strftime("%Y-%m-%dT%H:%M:%SZ") # Lấy đúng giờ phút giây hiện tại
     
     params = {
         "since": since,
         "until": until,
-        "limit": 500 # Tăng limit để lấy tối đa
+        "limit": 500
     }
+    
     response = requests.get(
         "https://api.accesstrade.vn/v1/order-list",
         headers=headers,
         params=params,
         timeout=REQUEST_TIMEOUT
     )
+    
     try:
         response.raise_for_status()
     except requests.RequestException as e:
-        print("Lỗi call AT:", e)
+        # In ra chi tiết lỗi từ AccessTrade để dễ debug
+        error_detail = e.response.text if e.response else str(e)
+        print(f"Lỗi call AT: {error_detail}")
         raise HTTPException(status_code=500, detail="Không lấy được dữ liệu AccessTrade")
+        
     return response.json()
 
 # ==========================================
