@@ -15,7 +15,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from fastapi import Request
 from slowapi import _rate_limit_exceeded_handler
 from collections import Counter, defaultdict
-
+from fastapi import Request
 # 1. Load cấu hình
 load_dotenv()
 AT_API_KEY = os.getenv("ACCESSTRADE_API_KEY")
@@ -82,6 +82,60 @@ class WithdrawalUpdate(BaseModel):
 # ==========================================
 # CÁC HÀM TIỆN ÍCH (UTILS)
 # ==========================================
+
+@app.get("/api/postback")
+async def accesstrade_postback(request: Request):
+
+    p = dict(request.query_params)
+    
+
+    db.collection("orders").document(
+        p["transaction_id"]
+    ).set({
+
+        "transaction_id": p.get("transaction_id"),
+
+        "order_id": p.get("order_id"),
+
+        "campaign_id": p.get("campaign_id"),
+
+        "product_id": p.get("product_id"),
+
+        "quantity": int(p.get("quantity",0)),
+
+        "product_price": float(p.get("product_price",0)),
+
+        "reward": float(p.get("reward",0)),
+
+        "sales_time": p.get("sales_time"),
+
+        "status": int(p.get("status",0)),
+
+        "confirmed": int(p.get("is_confirmed",0)),
+
+        "utm_source": p.get("utm_source"),
+
+        "utm_campaign": p.get("utm_campaign"),
+
+        "utm_medium": p.get("utm_medium"),
+
+        "utm_content": p.get("utm_content"),
+
+        "browser": p.get("browser"),
+
+        "platform": p.get("conversion_platform"),
+
+        "ip": p.get("ip"),
+
+        "created_at": firestore.SERVER_TIMESTAMP,
+
+        "raw": p
+    }, merge=True)
+
+    return {
+        "success": True
+    }
+
 def verify_admin(request: Request):
     auth_header = request.headers.get("Authorization")
     if not auth_header:
@@ -148,7 +202,7 @@ def get_dashboard_analytics(orders):
     for order in orders:
         email = order.get("utm_source")
         if not email: continue
-        cashback = float(order.get("pub_commission", 0)) * user_ratio
+        cashback = float(order.get("reward",0)) * user_ratio
         user_cashback[email] += cashback
     
     new_users = sum(1 for d in first_seen.values() if d >= week_ago)
@@ -162,43 +216,6 @@ def get_dashboard_analytics(orders):
         "today_links": today_links
     }
 
-def get_at_orders():
-    headers = {"Authorization": f"Token {AT_API_KEY}"}
-    
-    # FIX LỖI 500: AccessTrade chỉ cho phép query tối đa 30 ngày và không được lấy thời gian tương lai
-    now = datetime.now(timezone.utc)
-    since = (now - timedelta(days=30)).strftime("%Y-%m-%dT00:00:00Z")
-    until = now.strftime("%Y-%m-%dT%H:%M:%SZ") # Lấy đúng giờ phút giây hiện tại
-    
-    params = {
-        "since": since,
-        "until": until,
-        "limit": 300
-    }
-    
-    response = requests.get(
-        "https://api.accesstrade.vn/v1/transactions",
-        headers=headers,
-        params=params,
-        timeout=REQUEST_TIMEOUT
-    )
-    
-    try:
-        response.raise_for_status()
-    except requests.RequestException as e:
-        # In ra chi tiết lỗi từ AccessTrade để dễ debug
-        error_detail = e.response.text if e.response else str(e)
-        print(f"Lỗi call AT: {error_detail}")
-        raise HTTPException(status_code=500, detail="Không lấy được dữ liệu AccessTrade")
-    
-    print(response.status_code)
-    print(response.text)
-    print("since =", since)
-    print("until =", until)
-    print("headers =", headers)
-    print("params =", params)
-        
-    return response.json()
 
 # ==========================================
 # ENDPOINT: LẤY THÔNG TIN VÍ
@@ -207,18 +224,22 @@ def get_at_orders():
 @app.get("/api/user/wallet")
 @limiter.limit("30/minute")
 def get_user_wallet(email: str, request: Request):
-    # Đã xóa đoạn check if email == "phuquang04072001@gmail.com"
-    report = get_at_orders()
+    orders = db.collection("orders")\
+        .where("utm_source","==",email)\
+        .stream()
+
     balance = 0
     pending = 0
-    for order in report["data"]:
-        if order.get("utm_source") != email:
-            continue
-        cashback = float(order.get("pub_commission", 0)) * user_ratio
-        if order.get("order_approved", 0) > 0:
+
+    for doc in orders:
+
+        order = doc.to_dict()
+
+        cashback = float(order.get("reward",0)) * user_ratio
+
+        if order.get("confirmed") == 1:
             balance += cashback
-        elif order.get("order_reject", 0) > 0:
-            pass
+
         else:
             pending += cashback
 
@@ -270,7 +291,7 @@ async def convert_link(request: Request, body: LinkRequest):
         raise HTTPException(status_code=500, detail="Không thể kết nối AccessTrade")
     response_data = response.json()
     if not response_data.get("status"):
-        msg = body.get("message", "Không thể tạo link")
+        msg = response_data.get("message", "Không thể tạo link")
         if msg == "invalid params": msg = "Link không hợp lệ hoặc chưa hỗ trợ hoàn tiền."
         elif "campaign" in msg.lower(): msg = "Sản phẩm chưa tham gia hoàn tiền."
         elif "not found" in msg.lower(): msg = "Không tìm thấy sản phẩm."
@@ -319,8 +340,10 @@ async def convert_link(request: Request, body: LinkRequest):
 @limiter.limit("30/minute")
 def admin_reports(request: Request):
     verify_admin(request)
-    report = get_at_orders()
-    orders = report.get("data", [])
+    orders = [
+        doc.to_dict()
+        for doc in db.collection("orders").stream()
+    ]
     firebase = get_firebase_summary()
     analytics = get_dashboard_analytics(orders)
     
@@ -333,27 +356,29 @@ def admin_reports(request: Request):
     approved_count = pending_count = reject_count = 0
     
     for item in orders:
-        commission = float(item.get("pub_commission", 0))
-        sales = float(item.get("billing", 0))
+        commission = float(item.get("reward",0))
+        sales = float(item.get("product_price",0))
         
         total_commission += commission 
         total_sales += sales
         net_profit += commission * admin_ratio 
         
-        if item.get("order_approved", 0) > 0:
-            status = 1
+        if item.get("confirmed")==1:
             approved_count += 1
-        elif item.get("order_reject", 0) > 0:
-            status = 2
+            status=1
+
+        elif item.get("status")==2:
             reject_count += 1
+            status=2
+
         else:
-            status = 0
             pending_count += 1
+            status=0
             
         result.append({
             "order_id": item.get("order_id"),
             "order_time": item.get("sales_time"),
-            "campaign_name": item.get("merchant"),
+            "campaign_name"=item.get("campaign_id"),
             "sales_amount": sales,
             "pub_commission": commission,
             "order_status": status
@@ -497,25 +522,37 @@ def get_user_withdrawals_history(email: str, request: Request):
 @app.get("/api/user/history")
 @limiter.limit("30/minute")
 def get_user_history(email:str, request: Request):
-    report = get_at_orders()
+    orders = db.collection("orders")\
+        .where("utm_source","==",email)\
+        .stream()
     result=[]
-    for order in report["data"]:
+    for doc in orders:
+        order = doc.to_dict()
         if order.get("utm_source")!=email:
             continue
-        cashback=float(order["pub_commission"])*user_ratio
-        if order["order_approved"]>0:
+        cashback = float(order["reward"]) * user_ratio
+        if order.get("confirmed")==1:
             status="approved"
-        elif order["order_reject"]>0:
+
+        elif order.get("status")==2:
             status="rejected"
+
         else:
             status="pending"
         result.append({
-            "order_id":order["order_id"],
-            "merchant":order["merchant"],
-            "amount":order["billing"],
-            "cashback":round(cashback),
-            "status":status,
-            "time":order["sales_time"]
+
+            "order_id": order["order_id"],
+
+            "merchant": order.get("campaign_id"),
+
+            "amount": order.get("product_price",0),
+
+            "cashback": round(cashback),
+
+            "status": status,
+
+            "time": order.get("sales_time")
+
         })
     result.sort(key=lambda x:x["time"], reverse=True)
     return {"success":True, "orders":result}
