@@ -112,12 +112,11 @@ def get_firebase_summary():
     }
 
 def get_dashboard_analytics(orders):
-    conversions = [
-        doc.to_dict()
-        for doc in db.collection("conversions").stream()
-    ]
-    today = datetime.now().date()
-    week_ago = today - timedelta(days=6)
+    conversions = [doc.to_dict() for doc in db.collection("conversions").stream()]
+    today = datetime.now(timezone.utc) + timedelta(hours=7) # Chuyển về giờ VN
+    today_date = today.date()
+    week_ago = today_date - timedelta(days=6)
+    
     daily_links = defaultdict(int)
     first_seen = {}
     product_counter = Counter()
@@ -126,58 +125,44 @@ def get_dashboard_analytics(orders):
     
     for item in conversions:
         created = item.get("created_at")
-        if created is None:
-            continue
-        
-        if hasattr(created, 'date'):
-            created = created.date()
-        elif isinstance(created, str):
-            try:
-                created = datetime.fromisoformat(created[:10]).date()
-            except:
-                continue
+        doc_date = None
+        if created:
+            if hasattr(created, "timestamp"):
+                doc_date = (datetime.fromtimestamp(created.timestamp(), tz=timezone.utc) + timedelta(hours=7)).date()
+            elif isinstance(created, str):
+                try: doc_date = datetime.fromisoformat(created[:19]).date()
+                except: pass
                 
-        if created >= week_ago:
-            daily_links[str(created)] += 1
-        if created == today:
+        if not doc_date: continue
+                
+        if doc_date >= week_ago:
+            daily_links[str(doc_date)] += 1
+        if doc_date == today_date:
             today_links += 1
+            
         email = item.get("user_email")
-        if email:
-            if email not in first_seen or created < first_seen[email]:
-                first_seen[email] = created
+        if email and (email not in first_seen or doc_date < first_seen[email]):
+            first_seen[email] = doc_date
+            
         product = item.get("product_name")
-        platform = item.get("platform","tiktok")
+        platform = item.get("platform", "tiktok")
         if product:
-            product_counter[(product,platform)] += 1
+            product_counter[(product, platform)] += 1
 
     for order in orders:
-        if order["order_approved"] <= 0:
-            continue
+        # XÓA BỎ DÒNG BỎ QUA ĐƠN PENDING Ở ĐÂY ĐỂ TÍNH ĐỦ DOANH THU PHÁT SINH
         email = order.get("utm_source")
-        if not email:
-            continue
-        cashback = float(order["pub_commission"]) * user_ratio
+        if not email: continue
+        cashback = float(order.get("pub_commission", 0)) * user_ratio
         user_cashback[email] += cashback
     
     new_users = sum(1 for d in first_seen.values() if d >= week_ago)
-    chart = []
-    for i in range(7):
-        d = week_ago + timedelta(days=i)
-        chart.append({
-            "date": d.strftime("%d/%m"),
-            "count": daily_links.get(str(d), 0)
-        })
+    chart = [{"date": (week_ago + timedelta(days=i)).strftime("%d/%m"), "count": daily_links.get(str(week_ago + timedelta(days=i)), 0)} for i in range(7)]
         
     return {
         "daily_links": chart,
-        "top_users": [
-            {"email": k, "cashback": round(v)}
-            for k, v in sorted(user_cashback.items(), key=lambda x: x[1], reverse=True)[:10]
-        ],
-        "top_products": [
-            {"name": k[0], "platform": k[1], "count": v}
-            for k, v in product_counter.most_common(10)
-        ],
+        "top_users": [{"email": k, "cashback": round(v)} for k, v in sorted(user_cashback.items(), key=lambda x: x[1], reverse=True)[:10]],
+        "top_products": [{"name": k[0], "platform": k[1], "count": v} for k, v in product_counter.most_common(10)],
         "new_users": new_users,
         "today_links": today_links
     }
@@ -210,53 +195,38 @@ def get_at_orders():
 @app.get("/api/user/wallet")
 @limiter.limit("30/minute")
 def get_user_wallet(email: str, request: Request):
-    if email == "phuquang04072001@gmail.com":
-        balance = 500000
-        pending = 0
-    else:
-        report = get_at_orders()
-        balance = 0
-        pending = 0
-        for order in report["data"]:
-            if order.get("utm_source") != email:
-                continue
-            cashback = float(order["pub_commission"]) * user_ratio
-            if order["order_approved"] > 0:
-                balance += cashback
-            elif order["order_reject"] > 0:
-                pass
-            else:
-                pending += cashback
+    # Đã xóa đoạn check if email == "phuquang04072001@gmail.com"
+    report = get_at_orders()
+    balance = 0
+    pending = 0
+    for order in report["data"]:
+        if order.get("utm_source") != email:
+            continue
+        cashback = float(order.get("pub_commission", 0)) * user_ratio
+        if order.get("order_approved", 0) > 0:
+            balance += cashback
+        elif order.get("order_reject", 0) > 0:
+            pass
+        else:
+            pending += cashback
 
     # ====== Đã rút ======
     approved_amount = 0
-    approved = (
-        db.collection("withdrawals")
-        .where("user_email", "==", email)
-        .where("status", "==", "approved")
-        .stream()
-    )
+    approved = db.collection("withdrawals").where("user_email", "==", email).where("status", "==", "approved").stream()
     for w in approved:
-        approved_amount += w.to_dict()["amount"]
+        approved_amount += w.to_dict().get("amount", 0)
 
     # ====== Đang chờ ======
-    pending_amount = 0
-    pending_requests = (
-        db.collection("withdrawals")
-        .where("user_email", "==", email)
-        .where("status", "==", "pending")
-        .stream()
-    )
+    pending_amount_withdraw = 0
+    pending_requests = db.collection("withdrawals").where("user_email", "==", email).where("status", "==", "pending").stream()
     for w in pending_requests:
-        pending_amount += w.to_dict()["amount"]
+        pending_amount_withdraw += w.to_dict().get("amount", 0)
 
-    available = balance - approved_amount - pending_amount
-    available = max(0, available)
-
+    available = max(0, balance - approved_amount - pending_amount_withdraw)
     return {
         "success": True,
         "balance": round(available),
-        "pending": round(pending_amount),
+        "pending": round(pending), # Tiền hoa hồng AT đang chờ duyệt
         "withdrawn": round(approved_amount)
     }
 
@@ -347,29 +317,29 @@ def admin_reports(request: Request):
     net_profit = 0
     result = []
     
-    approved_count = 0
-    pending_count = 0
-    reject_count = 0
+    approved_count = pending_count = reject_count = 0
+    
     for item in orders:
         commission = float(item.get("pub_commission", 0))
-        approved = item["order_approved"] > 0
-        if approved:
-            total_commission += commission
-            net_profit += commission * admin_ratio
-        if item["order_approved"] > 0:
+        # TÍNH TỔNG TẤT CẢ HOA HỒNG (CẢ CHỜ DUYỆT) CHO GIỐNG DASHBOARD ACCESSTRADE
+        total_commission += commission 
+        
+        if item.get("order_approved", 0) > 0:
             status = 1
             approved_count += 1
-        elif item["order_reject"] > 0:
+            net_profit += commission * admin_ratio # Chỉ tính lợi nhuận net khi đã duyệt
+        elif item.get("order_reject", 0) > 0:
             status = 2
             reject_count += 1
         else:
             status = 0
             pending_count += 1
+            
         result.append({
-            "order_id": item["order_id"],
-            "order_time": item["sales_time"],
-            "campaign_name": item["merchant"],
-            "sales_amount": item["billing"],
+            "order_id": item.get("order_id"),
+            "order_time": item.get("sales_time"),
+            "campaign_name": item.get("merchant"),
+            "sales_amount": item.get("billing"),
             "pub_commission": commission,
             "order_status": status
         })
@@ -382,17 +352,9 @@ def admin_reports(request: Request):
             "total_commission": round(total_commission),
             "net_profit": round(net_profit),
             "generated_links": firebase["generated_links"],
-            "users": firebase["users"],
-            "logs": firebase["logs"]
+            "users": firebase["users"], "logs": firebase["logs"]
         },
-        "analytics": {
-            **analytics,
-            "order_status": {
-                "approved": approved_count,
-                "pending": pending_count,
-                "rejected": reject_count
-            }
-        },
+        "analytics": {**analytics, "order_status": {"approved": approved_count, "pending": pending_count, "rejected": reject_count}},
         "orders": result[:30]
     }
 
@@ -548,21 +510,21 @@ def get_user_history(email:str, request: Request):
 @app.get("/api/admin/users")
 @limiter.limit("30/minute")
 def get_admin_users(request: Request, start_date: str = None, end_date: str = None):
-    """Admin lấy danh sách chi tiết hành vi người dùng có lọc theo ngày"""
+    """Admin lấy danh sách chi tiết hành vi người dùng có lọc theo ngày chuẩn xác"""
     verify_admin(request)
     
     conversions = db.collection("conversions").stream()
     user_data = defaultdict(lambda: {"email": "", "total_links": 0, "recent_links": []})
     
-    # Xử lý parse ngày để lọc
-    start_dt = None
-    end_dt = None
+    # Ép kiểu thẳng về chuẩn Date (YYYY-MM-DD) để so sánh, bỏ qua timezone
+    start_d = None
+    end_d = None
     if start_date:
-        try: start_dt = datetime.fromisoformat(start_date).replace(tzinfo=timezone.utc)
-        except Exception: pass
+        try: start_d = datetime.strptime(start_date, "%Y-%m-%d").date()
+        except: pass
     if end_date:
-        try: end_dt = datetime.fromisoformat(end_date).replace(tzinfo=timezone.utc) + timedelta(days=1)
-        except Exception: pass
+        try: end_d = datetime.strptime(end_date, "%Y-%m-%d").date()
+        except: pass
 
     for doc in conversions:
         data = doc.to_dict()
@@ -573,26 +535,33 @@ def get_admin_users(request: Request, start_date: str = None, end_date: str = No
         created_at = data.get("created_at")
         time_str = "N/A"
         time_val = 0
-        doc_dt = None
+        doc_d = None
         
         if created_at:
             try:
+                # Cộng 7 tiếng để về chuẩn giờ Việt Nam
                 if hasattr(created_at, "timestamp"):
-                    doc_dt = datetime.fromtimestamp(created_at.timestamp(), tz=timezone.utc)
+                    time_val = created_at.timestamp()
+                    dt_vn = datetime.fromtimestamp(time_val, tz=timezone.utc) + timedelta(hours=7)
+                    doc_d = dt_vn.date()
+                    time_str = dt_vn.strftime("%d/%m/%Y %H:%M")
                 elif isinstance(created_at, str):
-                    doc_dt = datetime.fromisoformat(created_at[:19]).replace(tzinfo=timezone.utc)
-                    
-                if doc_dt:
-                    time_val = doc_dt.timestamp()
-                    time_str = doc_dt.strftime("%d/%m/%Y %H:%M")
+                    dt_obj = datetime.fromisoformat(created_at[:19])
+                    doc_d = dt_obj.date()
+                    time_val = dt_obj.timestamp()
+                    time_str = dt_obj.strftime("%d/%m/%Y %H:%M")
             except Exception:
                 pass
 
-        # Thực hiện lọc theo khoảng thời gian
-        if doc_dt:
-            if start_dt and doc_dt < start_dt:
+        # NẾU CÓ BỘ LỌC NGÀY NHƯNG DỮ LIỆU KHÔNG PARSE ĐƯỢC NGÀY -> BỎ QUA LUÔN
+        if (start_d or end_d) and not doc_d:
+            continue
+            
+        # NẾU KHÔNG NẰM TRONG KHOẢNG NGÀY -> BỎ QUA
+        if doc_d:
+            if start_d and doc_d < start_d:
                 continue
-            if end_dt and doc_dt >= end_dt:
+            if end_d and doc_d > end_d:
                 continue
 
         user_data[email]["email"] = email
@@ -601,7 +570,7 @@ def get_admin_users(request: Request, start_date: str = None, end_date: str = No
         user_data[email]["recent_links"].append({
             "product_name": data.get("product_name", "N/A"),
             "platform": data.get("platform", "N/A"),
-            "short_link": data.get("short_link", "N/A"), # Lấy ra link đã chuyển đổi
+            "short_link": data.get("short_link", "N/A"),
             "time_str": time_str,
             "time_val": time_val
         })
@@ -612,7 +581,7 @@ def get_admin_users(request: Request, start_date: str = None, end_date: str = No
         recent = info["recent_links"]
         for r in recent:
             del r["time_val"]
-        # Chỉ hiển thị user có phát sinh link trong khoảng thời gian lọc
+        # CHỈ THÊM USER NÀO CÓ TẠO LINK TRONG KHOẢNG THỜI GIAN ĐÃ LỌC
         if info["total_links"] > 0:
             result.append({
                 "email": email,
