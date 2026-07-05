@@ -74,6 +74,7 @@ body {
     color: #334155;
     cursor: pointer;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+    transition: all 0.3s;
 }
 
 .btn-secondary {
@@ -442,48 +443,6 @@ body {
     gap: 16px;
 }
 
-.item-avatar {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    font-weight: 800;
-    flex-shrink: 0;
-}
-
-.platform-mini-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 900;
-    font-size: 20px;
-    color: white;
-    flex-shrink: 0;
-}
-
-.platform-mini-icon.shopee {
-    background: #ea580c;
-}
-
-.platform-mini-icon.lazada {
-    background: #0284c7;
-}
-
-.platform-mini-icon.tiktok {
-    background: #0f172a;
-}
-
-.platform-mini-icon.default {
-    background: #94a3b8;
-}
-
 .item-info {
     display: flex;
     flex-direction: column;
@@ -506,11 +465,6 @@ body {
     font-weight: 600;
 }
 
-.item-info .uppercase {
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
 .item-right {
     font-weight: 800;
     font-size: 15px;
@@ -519,14 +473,6 @@ body {
 
 .highlight-green {
     color: #10b981;
-}
-
-.click-count {
-    color: #ea580c;
-    background: #ffedd5;
-    padding: 6px 12px;
-    border-radius: 12px;
-    font-size: 12px;
 }
 
 /* =========================================
@@ -731,6 +677,72 @@ body {
     margin-bottom: 12px;
 }
 
+/* =========================================
+   THÊM MỚI: QUẢN LÝ RÚT TIỀN & USER BEHAVIOR
+   ========================================= */
+
+.action-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-approve,
+.btn-reject {
+    border: none;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-approve {
+    background-color: #dcfce7;
+    color: #15803d;
+}
+
+.btn-approve:hover {
+    background-color: #16a34a;
+    color: white;
+}
+
+.btn-reject {
+    background-color: #fee2e2;
+    color: #be123c;
+}
+
+.btn-reject:hover {
+    background-color: #e11d48;
+    color: white;
+}
+
+.user-email-badge {
+    background: #f1f5f9;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #334155;
+    white-space: nowrap;
+}
+
+.bank-info-cell {
+    font-size: 13px;
+    color: #475569;
+    font-weight: 500;
+}
+
+/* Cắt chữ tên sản phẩm ở bảng theo dõi người dùng */
+.custom-admin-table td strong {
+    max-width: 250px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+    vertical-align: middle;
+}
+
 /* Màn hình loading & lỗi */
 .admin-loading-screen,
 .admin-restrict-screen {
@@ -799,18 +811,6 @@ body {
     }
 }
 
-@keyframes slideDown {
-    from {
-        transform: translateY(-100%);
-        opacity: 0;
-    }
-
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
-}
-
 @keyframes fadeUp {
     from {
         transform: translateY(30px);
@@ -821,10 +821,6 @@ body {
         transform: translateY(0);
         opacity: 1;
     }
-}
-
-.slide-down {
-    animation: slideDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .fade-up {
@@ -866,25 +862,19 @@ body {
 
 /* Responsive */
 @media (max-width: 1024px) {
-    .admin-stats-bento {
-        grid-template-columns: repeat(2, 1fr);
-    }
 
+    .admin-stats-bento,
     .admin-stats-bento.grid-4 {
         grid-template-columns: repeat(2, 1fr);
     }
 
-    .charts-grid {
-        grid-template-columns: 1fr;
-    }
-
+    .charts-grid,
     .top-lists-grid {
         grid-template-columns: 1fr;
     }
 }
 
 @media (max-width:768px) {
-
     .admin-topbar {
         padding: 12px 16px;
         flex-direction: row;
@@ -905,64 +895,7 @@ body {
 
     .btn-secondary,
     .btn-refresh {
-
         padding: 8px 12px;
         font-size: 12px;
     }
-
-}
-
-/* =========================================
-   THÊM MỚI: QUẢN LÝ RÚT TIỀN & ACTION BUTTONS
-   ========================================= */
-
-.action-buttons {
-    display: flex;
-    gap: 8px;
-}
-
-.btn-approve,
-.btn-reject {
-    border: none;
-    padding: 6px 12px;
-    border-radius: 8px;
-    font-size: 12px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.btn-approve {
-    background-color: #dcfce7;
-    color: #15803d;
-}
-
-.btn-approve:hover {
-    background-color: #16a34a;
-    color: white;
-}
-
-.btn-reject {
-    background-color: #fee2e2;
-    color: #be123c;
-}
-
-.btn-reject:hover {
-    background-color: #e11d48;
-    color: white;
-}
-
-.user-email-badge {
-    background: #f1f5f9;
-    padding: 6px 10px;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 600;
-    color: #334155;
-}
-
-.bank-info-cell {
-    font-size: 13px;
-    color: #475569;
-    font-weight: 500;
 }

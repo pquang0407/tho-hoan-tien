@@ -201,7 +201,7 @@ const Dashboard = ({ user }) => {
                             <p>
                                 Số tiền hoàn được ước tính theo mức hoa hồng hiện tại.
                                 Khoản hoàn cuối cùng sẽ được xác nhận sau khi đơn hàng
-                                được AccessTrade và sàn thương mại duyệt thành công.
+                                được sàn thương mại duyệt thành công.
                             </p>
                         </div>
 

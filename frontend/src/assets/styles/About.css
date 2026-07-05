@@ -593,7 +593,8 @@ h4 {
 
 .large-btn {
     background-color: white;
-    color: #ec4899 !important;
+    color: var(--peach-light);
+    ;
 }
 
 /* --- ANIMATIONS (Linh hồn của sự dễ thương) --- */
