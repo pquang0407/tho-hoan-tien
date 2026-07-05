@@ -245,16 +245,25 @@ def get_user_wallet(email: str, request: Request):
     for doc in orders:
         order = doc.to_dict()
 
-        cashback = float(order.get("reward", 0)) * user_ratio
-
         confirmed = int(order.get("confirmed", 0))
         status = int(order.get("status", 0))
+        cashback = float(order.get("reward", 0)) * user_ratio
+
+        print("==============")
+        print(order)
+        print("confirmed =", confirmed)
+        print("status =", status)
+        print("cashback =", cashback)
 
         if confirmed == 1:
+            print("=> APPROVED")
             total_approved += cashback
-
         elif status != 2:
+            print("=> PENDING")
             total_pending += cashback
+
+    print("approved =", total_approved)
+    print("pending =", total_pending)
 
     approved_withdraw = sum(
         d.to_dict().get("amount", 0)
@@ -276,7 +285,7 @@ def get_user_wallet(email: str, request: Request):
         total_approved - approved_withdraw - pending_withdraw,
         0
     )
-
+    print([doc.to_dict() for doc in db.collection("orders").where("utm_source", "==", email).stream()])
     return {
         "success": True,
         "balance": round(available),
