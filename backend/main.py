@@ -85,7 +85,8 @@ class WithdrawalUpdate(BaseModel):
 
 @app.api_route("/api/postback", methods=["GET","POST"])
 async def accesstrade_postback(request: Request):
-
+    body = await request.body()
+    print(body.decode())
     p = dict(request.query_params)
 
     print(p)
@@ -386,14 +387,15 @@ def admin_reports(request: Request):
             status = 0
             pending_count += 1
             
-        result.append({
-            "order_id": item.get("order_id"),
-            "order_time": item.get("sales_time"),
-            "campaign_name" : item.get("campaign_id"),
-            "sales_amount": sales,
-            "pub_commission": commission,
-            "order_status": status
-        })
+    result.append({
+        "order_id": item.get("order_id"),
+        "order_time": item.get("sales_time"),
+        "campaign_name": item.get("campaign_id"),
+        "sales_amount": sales,
+        "pub_commission": commission,
+        "order_status": status,
+        "utm_source": item.get("utm_source", "")
+    })
         
     result.sort(key=lambda x: x["order_time"], reverse=True)
     return {
