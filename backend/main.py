@@ -141,6 +141,23 @@ async def accesstrade_postback(request: Request):
         "success": True
     }
 
+@app.api_route("/api/postback", methods=["GET","POST"])
+async def accesstrade_postback(request: Request):
+
+    print("========== POSTBACK ==========")
+
+    print("Method:", request.method)
+
+    print("Headers:", dict(request.headers))
+
+    print("Query:", dict(request.query_params))
+
+    body = await request.body()
+
+    print("Body:", body)
+
+    return {"success": True}
+
 def verify_admin(request: Request):
     auth_header = request.headers.get("Authorization")
     if not auth_header:
