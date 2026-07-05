@@ -190,6 +190,16 @@ def get_at_orders():
         error_detail = e.response.text if e.response else str(e)
         print(f"Lỗi call AT: {error_detail}")
         raise HTTPException(status_code=500, detail="Không lấy được dữ liệu AccessTrade")
+
+    response = requests.get(
+        "https://api.accesstrade.vn/v1/order-list",
+        headers=headers,
+        params=params,
+        timeout=REQUEST_TIMEOUT
+    )
+    
+    print(response.status_code)
+    print(response.text)
         
     return response.json()
 
