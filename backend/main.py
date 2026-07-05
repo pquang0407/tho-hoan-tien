@@ -84,68 +84,67 @@ class WithdrawalUpdate(BaseModel):
 # CÁC HÀM TIỆN ÍCH (UTILS)
 # ==========================================
 
-@app.api_route("/api/postback", methods=["GET","POST"])
+# ==========================================
+# ENDPOINT: NHẬN WEBHOOK TỪ ACCESSTRADE
+# ==========================================
+@app.api_route("/api/postback", methods=["GET", "POST"])
 async def accesstrade_postback(request: Request):
-    body = await request.body()
-    print(body.decode())
+    # 1. Quét sạch dữ liệu dù AT gửi bằng GET (URL) hay POST (JSON Body)
     p = dict(request.query_params)
+    if request.method == "POST":
+        try:
+            body_json = await request.json()
+            p.update(body_json)
+        except Exception:
+            pass
 
-    print(p)
-
+    # Nếu không có transaction_id -> AT đang ping test endpoint
     transaction_id = p.get("transaction_id")
-
     if not transaction_id:
-        return {
-            "success": True,
-            "message": "endpoint ok"
-        }
+        return {"success": True, "message": "endpoint ok"}
     
-    db.collection("orders").document(
-        p["transaction_id"]
-    ).set({
+    # 2. Các hàm "Bọc thép" chống crash khi AT gửi chuỗi rỗng "" hoặc null
+    def safe_float(val):
+        try:
+            return float(val) if val else 0.0
+        except ValueError:
+            return 0.0
+            
+    def safe_int(val):
+        try:
+            return int(val) if val else 0
+        except ValueError:
+            return 0
 
-        "transaction_id": p.get("transaction_id"),
+    # 3. Chuẩn hóa chuỗi thời gian để React không bị lỗi Invalid Date
+    sales_time_str = str(p.get("sales_time", ""))
+    if sales_time_str:
+        sales_time_str = sales_time_str.replace(" ", "T")
 
-        "order_id": p.get("order_id"),
-
-        "campaign_id": p.get("campaign_id"),
-
-        "product_id": p.get("product_id"),
-
-        "quantity": int(p.get("quantity",0)),
-
-        "product_price": float(p.get("product_price",0)),
-
-        "reward": float(p.get("reward",0)),
-
-        "sales_time": p.get("sales_time"),
-
-        "status": int(p.get("status",0)),
-
-        "confirmed": int(p.get("is_confirmed",0)),
-
-        "utm_source": p.get("utm_source"),
-
-        "utm_campaign": p.get("utm_campaign"),
-
-        "utm_medium": p.get("utm_medium"),
-
-        "utm_content": p.get("utm_content"),
-
-        "browser": p.get("browser"),
-
-        "platform": p.get("conversion_platform"),
-
-        "ip": p.get("ip"),
-
+    # 4. Ghi đè vào Firebase một cách an toàn
+    db.collection("orders").document(str(transaction_id)).set({
+        "transaction_id": str(transaction_id),
+        "order_id": str(p.get("order_id", "")),
+        "campaign_id": str(p.get("campaign_id", "")),
+        "product_id": str(p.get("product_id", "")),
+        "quantity": safe_int(p.get("quantity")),
+        "product_price": safe_float(p.get("product_price")),
+        "reward": safe_float(p.get("reward")), # Tiền hoa hồng
+        "sales_time": sales_time_str,          # Giờ đã chuẩn hóa "T"
+        "status": safe_int(p.get("status")),
+        "confirmed": safe_int(p.get("is_confirmed")),
+        "utm_source": str(p.get("utm_source", "")),
+        "utm_campaign": str(p.get("utm_campaign", "")),
+        "utm_medium": str(p.get("utm_medium", "")),
+        "utm_content": str(p.get("utm_content", "")),
+        "browser": str(p.get("browser", "")),
+        "platform": str(p.get("conversion_platform", "")),
+        "ip": str(p.get("ip", "")),
         "created_at": firestore.SERVER_TIMESTAMP,
-
         "raw": p
     }, merge=True)
 
-    return {
-        "success": True
-    }
+    return {"success": True}
 
 def verify_admin(request: Request):
     auth_header = request.headers.get("Authorization")
