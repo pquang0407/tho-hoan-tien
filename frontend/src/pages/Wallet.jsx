@@ -14,7 +14,7 @@ const Wallet = ({ user }) => {
 
     const banks = [
         "Vietcombank", "Techcombank", "MB Bank", "BIDV", "VietinBank",
-        "ACB", "VPBank", "Sacombank", "TPBank", "Momo", "ZaloPay"
+        "ACB", "VPBank", "Sacombank", "TPBank", "Momo"
     ];
 
     const fetchWallet = async () => {
