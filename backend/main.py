@@ -596,6 +596,72 @@ def get_user_wallet(email: str):
         "withdrawn": round(approved_amount)
     }
 
+# ==========================================
+# ENDPOINT: QUẢN LÝ NGƯỜI DÙNG (ADMIN)
+# ==========================================
+@app.get("/api/admin/users")
+def get_admin_users(request: Request):
+    """Admin lấy danh sách chi tiết hành vi người dùng"""
+    verify_admin(request)
+    
+    conversions = db.collection("conversions").stream()
+    user_data = defaultdict(lambda: {"email": "", "total_links": 0, "recent_links": []})
+    
+    for doc in conversions:
+        data = doc.to_dict()
+        email = data.get("user_email")
+        if not email:
+            continue
+            
+        user_data[email]["email"] = email
+        user_data[email]["total_links"] += 1
+        
+        # Xử lý thời gian an toàn
+        created_at = data.get("created_at")
+        time_str = "N/A"
+        time_val = 0
+        
+        if created_at:
+            try:
+                if hasattr(created_at, "timestamp"):
+                    time_val = created_at.timestamp()
+                    time_str = created_at.strftime("%d/%m/%Y %H:%M")
+                elif isinstance(created_at, str):
+                    dt = datetime.fromisoformat(created_at[:19])
+                    time_val = dt.timestamp()
+                    time_str = dt.strftime("%d/%m/%Y %H:%M")
+            except:
+                pass
+
+        user_data[email]["recent_links"].append({
+            "product_name": data.get("product_name", "N/A"),
+            "platform": data.get("platform", "N/A"),
+            "time_str": time_str,
+            "time_val": time_val
+        })
+        
+    result = []
+    for email, info in user_data.items():
+        # Sắp xếp các link của user theo thời gian mới nhất
+        info["recent_links"].sort(key=lambda x: x["time_val"], reverse=True)
+        # Chỉ lấy 3 link gần nhất để tránh lag giao diện
+        recent = info["recent_links"][:3]
+        
+        # Xóa trường time_val không cần thiết trước khi trả về
+        for r in recent:
+            del r["time_val"]
+            
+        result.append({
+            "email": email,
+            "total_links": info["total_links"],
+            "recent_links": recent
+        })
+        
+    # Sắp xếp danh sách user theo số lượng link tạo giảm dần
+    result.sort(key=lambda x: x["total_links"], reverse=True)
+    
+    return {"success": True, "data": result}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
