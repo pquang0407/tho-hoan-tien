@@ -217,7 +217,7 @@ def get_at_orders():
 # ENDPOINT: RÚT GỌN LINK
 # ==========================================
 @app.post("/api/convert")
-@limiter.limit("30/minute") # Đã nới lỏng rate limit
+@limiter.limit("30/minute") 
 async def convert_link(request: Request, body: LinkRequest):
     if body.platform != "tiktok":
         raise HTTPException(status_code=400, detail="Hiện tại chỉ hỗ trợ TikTok Shop")
@@ -294,7 +294,7 @@ async def convert_link(request: Request, body: LinkRequest):
 # ENDPOINTS: ADMIN & QUẢN LÝ
 # ==========================================
 @app.get("/api/admin/at-reports")
-@limiter.limit("30/minute") # Đã nới lỏng rate limit
+@limiter.limit("30/minute")
 def admin_reports(request: Request):
     verify_admin(request)
     report = get_at_orders()
@@ -366,9 +366,11 @@ def admin_reports(request: Request):
 # ENDPOINTS: RÚT TIỀN (WITHDRAWALS)
 # ==========================================
 @app.post("/api/withdrawals")
-@limiter.limit("30/minute") # Đã nới lỏng rate limit
+@limiter.limit("30/minute") 
 async def create_withdrawal(request: Request, body: WithdrawalRequest):
-    wallet = get_user_wallet(body.user_email)
+    # ĐÃ FIX: Truyền thêm request vào get_user_wallet
+    wallet = get_user_wallet(body.user_email, request)
+    
     pending_request = db.collection("withdrawals")\
     .where("user_email","==",body.user_email)\
     .where("status","==","pending")\
@@ -492,7 +494,8 @@ def get_user_history(email:str, request: Request):
 # Lấy thông tin ví của 1 user
 @app.get("/api/user/wallet")
 @limiter.limit("30/minute")
-def get_user_wallet(email: str):
+# ĐÃ FIX: Thêm biến request: Request vào hàm này để chống lỗi 500 của SlowAPI
+def get_user_wallet(email: str, request: Request):
     if email == "phuquang04072001@gmail.com":
         balance = 500000
         pending = 0
