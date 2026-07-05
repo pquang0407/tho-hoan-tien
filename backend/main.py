@@ -173,7 +173,7 @@ def get_at_orders():
     params = {
         "since": since,
         "until": until,
-        "limit": 500
+        "limit": 300
     }
     
     response = requests.get(
@@ -190,18 +190,11 @@ def get_at_orders():
         error_detail = e.response.text if e.response else str(e)
         print(f"Lỗi call AT: {error_detail}")
         raise HTTPException(status_code=500, detail="Không lấy được dữ liệu AccessTrade")
-
-    response = requests.get(
-        "https://api.accesstrade.vn/v1/order-list",
-        headers=headers,
-        params=params,
-        timeout=REQUEST_TIMEOUT
-    )
     
     print(response.status_code)
     print(response.text)
-    print("since =", since.strftime("%Y-%m-%dT%H:%M:%SZ"))
-    print("until =", until.strftime("%Y-%m-%dT%H:%M:%SZ"))
+    print("since =", since)
+    print("until =", until)
     print("headers =", headers)
     print("params =", params)
         
