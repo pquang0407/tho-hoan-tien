@@ -234,43 +234,54 @@ def get_dashboard_analytics(orders):
 @app.get("/api/user/wallet")
 @limiter.limit("30/minute")
 def get_user_wallet(email: str, request: Request):
-    orders = db.collection("orders")\
-        .where("utm_source","==",email)\
+
+    orders = db.collection("orders") \
+        .where("utm_source", "==", email) \
         .stream()
 
-    balance = 0
-    pending = 0
+    total_approved = 0
+    total_pending = 0
 
     for doc in orders:
-
         order = doc.to_dict()
 
-        cashback = float(order.get("reward",0)) * user_ratio
+        cashback = float(order.get("reward", 0)) * user_ratio
 
-        if order.get("confirmed") == 1:
-            balance += cashback
+        confirmed = int(order.get("confirmed", 0))
+        status = int(order.get("status", 0))
 
-        else:
-            pending += cashback
+        if confirmed == 1:
+            total_approved += cashback
 
-    # ====== Đã rút ======
-    approved_amount = 0
-    approved = db.collection("withdrawals").where("user_email", "==", email).where("status", "==", "approved").stream()
-    for w in approved:
-        approved_amount += w.to_dict().get("amount", 0)
+        elif status != 2:
+            total_pending += cashback
 
-    # ====== Đang chờ ======
-    pending_amount_withdraw = 0
-    pending_requests = db.collection("withdrawals").where("user_email", "==", email).where("status", "==", "pending").stream()
-    for w in pending_requests:
-        pending_amount_withdraw += w.to_dict().get("amount", 0)
+    approved_withdraw = sum(
+        d.to_dict().get("amount", 0)
+        for d in db.collection("withdrawals")
+        .where("user_email", "==", email)
+        .where("status", "==", "approved")
+        .stream()
+    )
 
-    available = max(0, balance - approved_amount - pending_amount_withdraw)
+    pending_withdraw = sum(
+        d.to_dict().get("amount", 0)
+        for d in db.collection("withdrawals")
+        .where("user_email", "==", email)
+        .where("status", "==", "pending")
+        .stream()
+    )
+
+    available = max(
+        total_approved - approved_withdraw - pending_withdraw,
+        0
+    )
+
     return {
         "success": True,
         "balance": round(available),
-        "pending": round(pending), # Tiền hoa hồng AT đang chờ duyệt
-        "withdrawn": round(approved_amount)
+        "pending": round(total_pending),
+        "withdrawn": round(approved_withdraw)
     }
 
 
