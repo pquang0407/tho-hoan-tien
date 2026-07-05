@@ -184,11 +184,6 @@ const Dashboard = ({ user }) => {
                                     Giá sản phẩm: {result.product.price.toLocaleString()}đ
                                 </div>
                             </div>
-
-                            <div className="estimate-percent" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center' }}>
-                                <span style={{ fontSize: '12px', fontWeight: 600, opacity: 0.9, marginBottom: '-4px' }}>Tối đa</span>
-                                <span style={{ fontSize: '28px' }}>{result.commission.cashback_percent}%</span>
-                            </div>
                         </div>
 
                         <div className="cashback-note">
