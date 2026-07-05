@@ -407,6 +407,18 @@
         border-bottom: 1px solid #e2e8f0;
     }
 
+    .mobile-user-menu {
+        display: none;
+    }
+
+    @media (max-width:900px) {
+
+        .mobile-user-menu {
+            display: block;
+        }
+
+    }
+
 }
 
 .mobile-avatar {
@@ -488,4 +500,72 @@
     font-weight: 900;
     margin-bottom: 30px;
     color: #1e293b;
+}
+
+.mobile-user-menu {
+
+    position: absolute;
+
+    right: 16px;
+
+    top: 70px;
+
+    width: 230px;
+
+    background: #fff;
+
+    border-radius: 18px;
+
+    box-shadow: 0 15px 40px rgba(0, 0, 0, .15);
+
+    padding: 10px;
+
+    z-index: 99999;
+
+}
+
+.mobile-user-email {
+
+    font-size: 13px;
+
+    color: #64748b;
+
+    margin-bottom: 8px;
+
+    padding: 8px 10px;
+
+    border-bottom: 1px solid #eee;
+
+    word-break: break-all;
+
+}
+
+.mobile-menu-btn {
+
+    width: 100%;
+
+    border: none;
+
+    background: none;
+
+    padding: 12px;
+
+    text-align: left;
+
+    border-radius: 12px;
+
+    cursor: pointer;
+
+    font-size: 15px;
+
+    font-weight: 700;
+
+}
+
+.mobile-menu-btn:hover {
+
+    background: #fff0f2;
+
+    color: #e11d48;
+
 }

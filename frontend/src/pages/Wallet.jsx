@@ -56,7 +56,7 @@ const Wallet = ({ user }) => {
                         <div className="progress-container">
                             <div className="progress-bar" style={{ width: `${progress}%` }}></div>
                         </div>
-                        <p>{balance < 100000 ? `Còn thiếu ${(100000 - balance).toLocaleString()}đ để rút` : "Đã đủ điều kiện rút tiền!"}</p>
+                        <p>{balance <= 100000 ? `Còn thiếu ${(100000 - balance).toLocaleString()}đ để rút` : "Đã đủ điều kiện rút tiền!"}</p>
                     </div>
                 </div>
 

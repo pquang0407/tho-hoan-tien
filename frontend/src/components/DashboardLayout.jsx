@@ -10,6 +10,7 @@ const DashboardLayout = ({ children, user }) => {
     const [isCollapsed, setIsCollapsed] = useState(
         window.innerWidth > 900
     );
+    const [showUserMenu, setShowUserMenu] = useState(false);
 
     useEffect(() => {
         const resize = () => {
@@ -24,6 +25,9 @@ const DashboardLayout = ({ children, user }) => {
 
         return () => window.removeEventListener("resize", resize);
     }, []);
+    useEffect(() => {
+        setShowUserMenu(false);
+    }, [location.pathname]);
 
     const handleLogout = async () => {
         try {
@@ -137,7 +141,16 @@ const DashboardLayout = ({ children, user }) => {
                         <span className="logo-emoji">🐰</span>
                         <strong>Thỏ Hoàn Tiền</strong>
                     </div>
-                    <div className="mobile-avatar" onClick={() => !user && navigate("/login")}>
+                    <div
+                        className="mobile-avatar"
+                        onClick={() => {
+                            if (user) {
+                                setShowUserMenu(!showUserMenu);
+                            } else {
+                                navigate("/login");
+                            }
+                        }}
+                    >
                         {user?.photoURL ? (
                             <img src={user.photoURL} alt="Avatar" />
                         ) : (
@@ -146,6 +159,20 @@ const DashboardLayout = ({ children, user }) => {
                             </div>
                         )}
                     </div>
+                    {showUserMenu && user && (
+                        <div className="mobile-user-menu">
+                            <div className="mobile-user-email">
+                                {user.email}
+                            </div>
+
+                            <button
+                                className="mobile-menu-btn"
+                                onClick={handleLogout}
+                            >
+                                🚪 Đăng xuất
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {children}
