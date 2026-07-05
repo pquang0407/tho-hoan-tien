@@ -64,7 +64,9 @@ body {
 }
 
 .btn-secondary,
-.btn-refresh {
+.btn-refresh,
+.btn-excel {
+    /* <-- ĐÃ THÊM .btn-excel VÀO ĐÂY ĐỂ DÙNG CHUNG STYLE CƠ BẢN */
     background: var(--admin-surface);
     border: 1px solid var(--admin-border);
     padding: 10px 20px;
@@ -81,6 +83,19 @@ body {
     color: var(--admin-primary);
     border-color: #fecdd3;
     background: #fff0f2;
+}
+
+/* --- THÊM CSS MỚI RIÊNG CHO NÚT EXCEL --- */
+.btn-excel {
+    background: #dcfce7;
+    border: 1px solid #86efac;
+    color: #15803d;
+}
+
+.btn-excel:hover {
+    background: #16a34a;
+    color: white;
+    border-color: #15803d;
 }
 
 /* Nội dung chính */
@@ -239,7 +254,6 @@ body {
 /* =========================================
    CHARTS & TOP LISTS
    ========================================= */
-
 .charts-grid {
     display: grid;
     grid-template-columns: 2fr 1fr;
@@ -680,7 +694,6 @@ body {
 /* =========================================
    THÊM MỚI: QUẢN LÝ RÚT TIỀN & USER BEHAVIOR
    ========================================= */
-
 .action-buttons {
     display: flex;
     gap: 8px;
@@ -894,7 +907,9 @@ body {
     }
 
     .btn-secondary,
-    .btn-refresh {
+    .btn-refresh,
+    .btn-excel {
+        /* <-- BẢO ĐẢM TRÊN MOBILE CŨNG THU NHỎ NÚT */
         padding: 8px 12px;
         font-size: 12px;
     }
