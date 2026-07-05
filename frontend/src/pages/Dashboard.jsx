@@ -6,17 +6,13 @@ import FloatingCarrots from "../components/FloatingCarrots";
 const Dashboard = ({ user }) => {
     const navigate = useNavigate();
 
-    if (!user) {
-        navigate("/login");
-        return null;
-    }
-
     const [activeTab, setActiveTab] = useState("shopee");
     const [linkInput, setLinkInput] = useState("");
     const [isConverting, setIsConverting] = useState(false);
     const [showResult, setShowResult] = useState(false);
     const [result, setResult] = useState(null);
     const [error, setError] = useState("");
+
     if (!user) {
         navigate("/login");
         return null;
@@ -25,16 +21,12 @@ const Dashboard = ({ user }) => {
     const handleConvert = async () => {
         if (!linkInput) return;
 
-        if (!user) {
-            navigate("/login");
-            return;
-        }
-
         setIsConverting(true);
         setShowResult(false);
         setError("");
 
         try {
+            // Bác nhớ check xem link API này đã đổi thành link local hay deploy nhé
             const res = await fetch(
                 "https://tho-hoan-tien-backend.onrender.com/api/convert",
                 {
@@ -151,7 +143,7 @@ const Dashboard = ({ user }) => {
                 </div>
             </div>
 
-            {/* Báo lỗi (Đã thêm CSS cho phần này) */}
+            {/* Báo lỗi */}
             {error && (
                 <div className="error-box slide-up">
                     <span className="error-icon">⚠️</span> {error}
@@ -181,29 +173,31 @@ const Dashboard = ({ user }) => {
                             </div>
                         </div>
 
+                        {/* --- ĐÃ SỬA LẠI KHÚC NÀY ĐỂ RÀO TRƯỚC VỤ HOA HỒNG DỰ KIẾN --- */}
                         <div className="cashback-estimate">
                             <div className="estimate-left">
-                                <span className="estimate-label">Bé thỏ nhặt được (Dự kiến) ⓘ</span>
+                                <span className="estimate-label">Hoa hồng dự kiến ⓘ</span>
                                 <div className="estimate-amount">
-                                    ≈ {result.commission.cashback.toLocaleString()}đ
+                                    Lên đến {result.commission.cashback.toLocaleString()}đ
                                 </div>
                                 <div className="original-price">
                                     Giá sản phẩm: {result.product.price.toLocaleString()}đ
                                 </div>
                             </div>
-                            <div className="estimate-percent">
-                                {result.commission.cashback_percent}%
+
+                            <div className="estimate-percent" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center' }}>
+                                <span style={{ fontSize: '12px', fontWeight: 600, opacity: 0.9, marginBottom: '-4px' }}>Tối đa</span>
+                                <span style={{ fontSize: '28px' }}>{result.commission.cashback_percent}%</span>
                             </div>
                         </div>
 
                         <div className="cashback-note">
                             <b>Lưu ý từ Hang Thỏ 🐾</b>
                             <p>
-                                Số tiền hoàn được ước tính theo mức hoa hồng hiện tại.
-                                Khoản hoàn cuối cùng sẽ được xác nhận sau khi đơn hàng
-                                được sàn thương mại duyệt thành công.
+                                Con số trên là mức hoàn tiền <strong>dự kiến tối đa</strong>. Số tiền thực tế nhận được có thể thay đổi thấp hơn tùy thuộc vào ngành hàng, tài khoản mua hàng (mới/cũ) và chính sách hoa hồng của sàn tại thời điểm bạn chốt đơn.
                             </p>
                         </div>
+                        {/* ------------------------------------------------------------- */}
 
                         <button
                             className="btn-open-link bubbly-hover"
@@ -229,8 +223,6 @@ const Dashboard = ({ user }) => {
             )}
             <>
                 <FloatingCarrots />
-
-                {/* Toàn bộ giao diện */}
             </>
         </div>
     );
