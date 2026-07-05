@@ -547,40 +547,61 @@ def get_user_history(email:str, request: Request):
 # ==========================================
 @app.get("/api/admin/users")
 @limiter.limit("30/minute")
-def get_admin_users(request: Request):
-    """Admin lấy danh sách chi tiết hành vi người dùng"""
+def get_admin_users(request: Request, start_date: str = None, end_date: str = None):
+    """Admin lấy danh sách chi tiết hành vi người dùng có lọc theo ngày"""
     verify_admin(request)
     
     conversions = db.collection("conversions").stream()
     user_data = defaultdict(lambda: {"email": "", "total_links": 0, "recent_links": []})
     
+    # Xử lý parse ngày để lọc
+    start_dt = None
+    end_dt = None
+    if start_date:
+        try: start_dt = datetime.fromisoformat(start_date).replace(tzinfo=timezone.utc)
+        except Exception: pass
+    if end_date:
+        try: end_dt = datetime.fromisoformat(end_date).replace(tzinfo=timezone.utc) + timedelta(days=1)
+        except Exception: pass
+
     for doc in conversions:
         data = doc.to_dict()
         email = data.get("user_email")
         if not email:
             continue
             
-        user_data[email]["email"] = email
-        user_data[email]["total_links"] += 1
-        
         created_at = data.get("created_at")
         time_str = "N/A"
         time_val = 0
+        doc_dt = None
         
         if created_at:
             try:
                 if hasattr(created_at, "timestamp"):
-                    time_val = created_at.timestamp()
-                    time_str = created_at.strftime("%d/%m/%Y %H:%M")
+                    doc_dt = datetime.fromtimestamp(created_at.timestamp(), tz=timezone.utc)
                 elif isinstance(created_at, str):
-                    dt = datetime.fromisoformat(created_at[:19])
-                    time_val = dt.timestamp()
-                    time_str = dt.strftime("%d/%m/%Y %H:%M")
-            except:
+                    doc_dt = datetime.fromisoformat(created_at[:19]).replace(tzinfo=timezone.utc)
+                    
+                if doc_dt:
+                    time_val = doc_dt.timestamp()
+                    time_str = doc_dt.strftime("%d/%m/%Y %H:%M")
+            except Exception:
                 pass
+
+        # Thực hiện lọc theo khoảng thời gian
+        if doc_dt:
+            if start_dt and doc_dt < start_dt:
+                continue
+            if end_dt and doc_dt >= end_dt:
+                continue
+
+        user_data[email]["email"] = email
+        user_data[email]["total_links"] += 1
+        
         user_data[email]["recent_links"].append({
             "product_name": data.get("product_name", "N/A"),
             "platform": data.get("platform", "N/A"),
+            "short_link": data.get("short_link", "N/A"), # Lấy ra link đã chuyển đổi
             "time_str": time_str,
             "time_val": time_val
         })
@@ -591,12 +612,14 @@ def get_admin_users(request: Request):
         recent = info["recent_links"]
         for r in recent:
             del r["time_val"]
-        result.append({
-            "email": email,
-            "total_links": info["total_links"],
-            "recent_links": recent
-        })
-        
+        # Chỉ hiển thị user có phát sinh link trong khoảng thời gian lọc
+        if info["total_links"] > 0:
+            result.append({
+                "email": email,
+                "total_links": info["total_links"],
+                "recent_links": recent
+            })
+            
     result.sort(key=lambda x: x["total_links"], reverse=True)
     return {"success": True, "data": result}
 
