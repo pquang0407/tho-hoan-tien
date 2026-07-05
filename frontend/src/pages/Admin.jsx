@@ -107,11 +107,19 @@ const Admin = ({ user }) => {
         }
         const ordersData = (reportData?.orders || []).map(o => ({
             "Mã Đơn Hàng": o.order_id || "N/A",
-            "Thời Gian Giao Dịch": o.order_time ? new Date(o.order_time).toLocaleString('vi-VN') : "--",
+            "User": o.utm_source || "",
+            "Thời Gian Giao Dịch": o.order_time
+                ? new Date(o.order_time).toLocaleString("vi-VN")
+                : "--",
             "Chiến Dịch/Sàn": o.campaign_name || "Khác",
             "Giá Trị Đơn Hàng (đ)": parseFloat(o.sales_amount || 0),
             "Hoa Hồng Hệ Thống (đ)": parseFloat(o.pub_commission || 0),
-            "Trạng Thái Đơn Sàn": o.order_status === 1 ? "Đã duyệt" : o.order_status === 2 ? "Hủy bỏ" : "Chờ xử lý"
+            "Trạng Thái Đơn Sàn":
+                o.order_status === 1
+                    ? "Đã duyệt"
+                    : o.order_status === 2
+                        ? "Hủy bỏ"
+                        : "Chờ xử lý"
         }));
         const withdrawalsData = withdrawals.map(w => ({
             "Mã Giao Dịch": w.id, "Thời Gian Đăng Ký": w.date, "Tài Khoản Email": w.email,
@@ -329,6 +337,7 @@ const Admin = ({ user }) => {
                             <thead>
                                 <tr>
                                     <th>MÃ ĐƠN HÀNG</th>
+                                    <th>USER</th>
                                     <th>THỜI GIAN</th>
                                     <th>CHIẾN DỊCH</th>
                                     <th>GIÁ TRỊ ĐƠN</th>
@@ -339,7 +348,12 @@ const Admin = ({ user }) => {
                             <tbody>
                                 {orders.map((order, i) => (
                                     <tr key={i}>
-                                        <td><strong>{order.order_id || 'N/A'}</strong></td>
+                                        <td><strong>{order.order_id || "N/A"}</strong></td>
+                                        <td>
+                                            <span className="user-email-badge">
+                                                {order.utm_source || "--"}
+                                            </span>
+                                        </td>
                                         <td className="time-cell">{order.order_time ? new Date(order.order_time).toLocaleString('vi-VN') : '--'}</td>
                                         <td>
                                             <span className={`merchant-badge ${(order.campaign_name || '').toLowerCase()}`}>
@@ -357,7 +371,7 @@ const Admin = ({ user }) => {
                                 ))}
                                 {orders.length === 0 && (
                                     <tr>
-                                        <td colSpan="6" className="empty-table-cell">
+                                        <td colSpan="7" className="empty-table-cell">
                                             <div className="empty-state">
                                                 <span className="empty-icon">📭</span>
                                                 <p>Chưa có dữ liệu đơn hàng nào được ghi nhận từ AccessTrade.</p>
