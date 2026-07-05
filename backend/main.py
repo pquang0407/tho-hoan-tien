@@ -200,6 +200,10 @@ def get_at_orders():
     
     print(response.status_code)
     print(response.text)
+    print("since =", since.strftime("%Y-%m-%dT%H:%M:%SZ"))
+    print("until =", until.strftime("%Y-%m-%dT%H:%M:%SZ"))
+    print("headers =", headers)
+    print("params =", params)
         
     return response.json()
 
