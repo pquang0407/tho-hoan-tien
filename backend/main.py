@@ -29,6 +29,8 @@ LAZADA_CAMPAIGN_ID = ""
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL")
 
 cashback_percent = 70
+user_ratio = 0.7
+admin_ratio = 0.3
 REPORT_DAYS = 30
 REQUEST_TIMEOUT = 15
 
@@ -116,21 +118,17 @@ def get_firebase_summary():
     }
 
 def get_dashboard_analytics(orders):
-
     conversions = [
         doc.to_dict()
         for doc in db.collection("conversions").stream()
     ]
-
     today = datetime.now().date()
     week_ago = today - timedelta(days=6)
 
     daily_links = defaultdict(int)
     first_seen = {}
     product_counter = Counter()
-
     user_cashback = defaultdict(float)
-
     today_links = 0
     
     for item in conversions:
@@ -138,7 +136,6 @@ def get_dashboard_analytics(orders):
         if created is None:
             continue
         
-        # Xử lý parse date an toàn
         if hasattr(created, 'date'):
             created = created.date()
         elif isinstance(created, str):
@@ -147,7 +144,6 @@ def get_dashboard_analytics(orders):
             except:
                 continue
                 
-        # Thống kê 7 ngày
         if created >= week_ago:
             daily_links[str(created)] += 1
 
@@ -155,38 +151,25 @@ def get_dashboard_analytics(orders):
             today_links += 1
 
         email = item.get("user_email")
-
         if email:
-
             if email not in first_seen or created < first_seen[email]:
                 first_seen[email] = created
 
         product = item.get("product_name")
-
         platform = item.get("platform","tiktok")
-
         if product:
             product_counter[(product,platform)] += 1
 
     for order in orders:
-
         if order["order_approved"] <= 0:
             continue
-
         email = order.get("utm_source")
-
         if not email:
             continue
-
-        cashback = float(order["pub_commission"]) * 0.7
-
+        cashback = float(order["pub_commission"]) * user_ratio
         user_cashback[email] += cashback
     
-    new_users = sum(
-        1
-        for d in first_seen.values()
-        if d >= week_ago
-    )
+    new_users = sum(1 for d in first_seen.values() if d >= week_ago)
     chart = []
     for i in range(7):
         d = week_ago + timedelta(days=i)
@@ -234,7 +217,7 @@ def get_at_orders():
 # ENDPOINT: RÚT GỌN LINK
 # ==========================================
 @app.post("/api/convert")
-@limiter.limit("10/minute")
+@limiter.limit("30/minute") # Đã nới lỏng rate limit
 async def convert_link(request: Request, body: LinkRequest):
     if body.platform != "tiktok":
         raise HTTPException(status_code=400, detail="Hiện tại chỉ hỗ trợ TikTok Shop")
@@ -280,8 +263,8 @@ async def convert_link(request: Request, body: LinkRequest):
     commission_info = data.get("product_commission", {})
     commission = float(commission_info.get("amount", 0))
 
-    cashback = round(commission * 0.7)
-    publisher_income = round(commission * 0.3)
+    cashback = round(commission * user_ratio)
+    publisher_income = round(commission * admin_ratio)
     client_ip = request.client.host
 
     db.collection("logs").add({
@@ -293,16 +276,11 @@ async def convert_link(request: Request, body: LinkRequest):
         "user_email": body.user_email,
         "original_url": body.original_url,
         "platform": body.platform,
-
         "product_name": product_name,
         "product_price": product_price,
-
         "short_link": short_link,
         "aff_link": aff_link,
-
         "created_at": datetime.now(),
-
-        # chỉ để hiển thị lúc chưa có order
         "status": "link_created"
     })
     return {
@@ -316,16 +294,15 @@ async def convert_link(request: Request, body: LinkRequest):
 # ENDPOINTS: ADMIN & QUẢN LÝ
 # ==========================================
 @app.get("/api/admin/at-reports")
-@limiter.limit("5/minute")
+@limiter.limit("30/minute") # Đã nới lỏng rate limit
 def admin_reports(request: Request):
     verify_admin(request)
     report = get_at_orders()
 
     orders = report.get("data", [])
-
     firebase = get_firebase_summary()
-
     analytics = get_dashboard_analytics(orders)
+    
     total_orders = len(orders)
     total_commission = 0
     net_profit = 0
@@ -341,7 +318,7 @@ def admin_reports(request: Request):
 
         if approved:
             total_commission += commission
-            net_profit += commission * 0.3
+            net_profit += commission * admin_ratio
 
         if item["order_approved"] > 0:
             status = 1
@@ -389,7 +366,7 @@ def admin_reports(request: Request):
 # ENDPOINTS: RÚT TIỀN (WITHDRAWALS)
 # ==========================================
 @app.post("/api/withdrawals")
-@limiter.limit("5/minute")
+@limiter.limit("30/minute") # Đã nới lỏng rate limit
 async def create_withdrawal(request: Request, body: WithdrawalRequest):
     wallet = get_user_wallet(body.user_email)
     pending_request = db.collection("withdrawals")\
@@ -397,43 +374,26 @@ async def create_withdrawal(request: Request, body: WithdrawalRequest):
     .where("status","==","pending")\
     .stream()
 
-    pending_amount = sum(
-        w.to_dict()["amount"]
-        for w in pending_request
-    )
+    pending_amount = sum(w.to_dict()["amount"] for w in pending_request)
 
     if body.amount > wallet["balance"] - pending_amount:
+        raise HTTPException(status_code=400, detail="Số dư khả dụng không đủ.")
 
-        raise HTTPException(
-            status_code=400,
-            detail="Số dư khả dụng không đủ."
-        )
-
-    if body.amount <= 100000:
-
-        raise HTTPException(
-            status_code=400,
-            detail="Rút tối thiểu 100.000đ"
-        )
-    """User gửi yêu cầu rút tiền"""
+    if body.amount < 100000:
+        raise HTTPException(status_code=400, detail="Rút tối thiểu 100.000đ")
+        
     db.collection("withdrawals").add({
-
         "user_email": body.user_email,
-
         "amount": body.amount,
-
         "bank_info": body.bank_info,
-
         "status": "pending",
-
         "balance_at_request": wallet["balance"],
-
         "created_at": datetime.now()
-
     })
     return {"success": True, "message": "Yêu cầu rút tiền đã được gửi thành công!"}
 
 @app.get("/api/admin/withdrawals")
+@limiter.limit("30/minute")
 def get_withdrawals(request: Request):
     """Admin lấy danh sách yêu cầu rút tiền"""
     verify_admin(request)
@@ -442,7 +402,6 @@ def get_withdrawals(request: Request):
     result = []
     for doc in docs:
         data = doc.to_dict()
-        # Parse date an toàn
         created_time = ""
         if "created_at" in data and data["created_at"]:
             try:
@@ -461,6 +420,7 @@ def get_withdrawals(request: Request):
     return {"success": True, "data": result}
 
 @app.post("/api/admin/withdrawals/update")
+@limiter.limit("30/minute")
 def update_withdrawal(request: Request, body: WithdrawalUpdate):
     """Admin cập nhật trạng thái yêu cầu rút tiền"""
     verify_admin(request)
@@ -475,83 +435,75 @@ def update_withdrawal(request: Request, body: WithdrawalUpdate):
     })
     return {"success": True, "message": "Cập nhật trạng thái thành công"}
 
+# --- API MỚI: User lấy lịch sử rút tiền của chính mình ---
+@app.get("/api/user/withdrawals/history")
+@limiter.limit("30/minute")
+def get_user_withdrawals_history(email: str, request: Request):
+    docs = db.collection("withdrawals").where("user_email", "==", email).order_by("created_at", direction=firestore.Query.DESCENDING).stream()
+    result = []
+    for doc in docs:
+        data = doc.to_dict()
+        created_time = ""
+        if "created_at" in data and data["created_at"]:
+            try:
+                created_time = data["created_at"].strftime("%d/%m/%Y %H:%M")
+            except:
+                created_time = str(data["created_at"])
+
+        result.append({
+            "id": doc.id,
+            "amount": data.get("amount", 0),
+            "bank": data.get("bank_info", "N/A"),
+            "status": data.get("status", "pending"),
+            "date": created_time
+        })
+    return {"success": True, "data": result}
+
 # Lấy lịch sử đơn hàng của 1 user
 @app.get("/api/user/history")
-def get_user_history(email:str):
-
+@limiter.limit("30/minute")
+def get_user_history(email:str, request: Request):
     report = get_at_orders()
-
     result=[]
-
     for order in report["data"]:
-
         if order.get("utm_source")!=email:
             continue
 
-        cashback=float(order["pub_commission"])*0.7
+        cashback=float(order["pub_commission"])*user_ratio
 
         if order["order_approved"]>0:
-
             status="approved"
-
         elif order["order_reject"]>0:
-
             status="rejected"
-
         else:
-
             status="pending"
 
         result.append({
-
             "order_id":order["order_id"],
-
             "merchant":order["merchant"],
-
             "amount":order["billing"],
-
             "cashback":round(cashback),
-
             "status":status,
-
             "time":order["sales_time"]
-
         })
-
-    result.sort(
-        key=lambda x:x["time"],
-        reverse=True
-    )
-
-    return{
-
-        "success":True,
-
-        "orders":result
-    }
+    result.sort(key=lambda x:x["time"], reverse=True)
+    return {"success":True, "orders":result}
 
 # Lấy thông tin ví của 1 user
 @app.get("/api/user/wallet")
+@limiter.limit("30/minute")
 def get_user_wallet(email: str):
-
-    # ====== TEST ======
     if email == "phuquang04072001@gmail.com":
         balance = 500000
         pending = 0
-
     else:
         report = get_at_orders()
-
         balance = 0
         pending = 0
-
         for order in report["data"]:
-
             if order.get("utm_source") != email:
                 continue
-
-            cashback = float(order["pub_commission"]) * 0.7
-
+            cashback = float(order["pub_commission"]) * user_ratio
             if order["order_approved"] > 0:
                 balance += cashback
             elif order["order_reject"] > 0:
@@ -560,35 +512,28 @@ def get_user_wallet(email: str):
                 pending += cashback
 
     # ====== Đã rút ======
-
     approved_amount = 0
-
     approved = (
         db.collection("withdrawals")
         .where("user_email", "==", email)
         .where("status", "==", "approved")
         .stream()
     )
-
     for w in approved:
         approved_amount += w.to_dict()["amount"]
 
     # ====== Đang chờ ======
-
     pending_amount = 0
-
     pending_requests = (
         db.collection("withdrawals")
         .where("user_email", "==", email)
         .where("status", "==", "pending")
         .stream()
     )
-
     for w in pending_requests:
         pending_amount += w.to_dict()["amount"]
 
     available = balance - approved_amount - pending_amount
-
     available = max(0, available)
 
     return {
@@ -602,6 +547,7 @@ def get_user_wallet(email: str):
 # ENDPOINT: QUẢN LÝ NGƯỜI DÙNG (ADMIN)
 # ==========================================
 @app.get("/api/admin/users")
+@limiter.limit("30/minute")
 def get_admin_users(request: Request):
     """Admin lấy danh sách chi tiết hành vi người dùng"""
     verify_admin(request)
@@ -618,7 +564,6 @@ def get_admin_users(request: Request):
         user_data[email]["email"] = email
         user_data[email]["total_links"] += 1
         
-        # Xử lý thời gian an toàn
         created_at = data.get("created_at")
         time_str = "N/A"
         time_val = 0
@@ -644,24 +589,17 @@ def get_admin_users(request: Request):
         
     result = []
     for email, info in user_data.items():
-        # Sắp xếp các link của user theo thời gian mới nhất
         info["recent_links"].sort(key=lambda x: x["time_val"], reverse=True)
-        # Chỉ lấy 3 link gần nhất để tránh lag giao diện
-        recent = info["recent_links"][:3]
-        
-        # Xóa trường time_val không cần thiết trước khi trả về
+        recent = info["recent_links"]
         for r in recent:
             del r["time_val"]
-            
         result.append({
             "email": email,
             "total_links": info["total_links"],
             "recent_links": recent
         })
         
-    # Sắp xếp danh sách user theo số lượng link tạo giảm dần
     result.sort(key=lambda x: x["total_links"], reverse=True)
-    
     return {"success": True, "data": result}
 
 if __name__ == "__main__":
