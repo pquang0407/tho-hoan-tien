@@ -177,7 +177,7 @@ def get_at_orders():
     }
     
     response = requests.get(
-        "https://api.accesstrade.vn/v1/order-list",
+        "https://api.accesstrade.vn/v1/transactions",
         headers=headers,
         params=params,
         timeout=REQUEST_TIMEOUT
