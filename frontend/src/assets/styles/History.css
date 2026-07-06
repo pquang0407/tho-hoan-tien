@@ -1,0 +1,274 @@
+/* --- MODERN SAAS HISTORY BRAND STYLE SYSTEM (THỎ CASHBACK) --- */
+:root {
+    --primary-color: #f27b8a;
+    --primary-hover: #e05e6e;
+    --peach-light: #fff0f2;
+    --text-dark: #1e293b;
+    --text-muted: #64748b;
+    --border-color: #f5e4e6;
+    
+    --admin-emerald: #10b981;
+    --admin-emerald-light: #ecfdf5;
+    --admin-amber: #f59e0b;
+    --admin-amber-light: #fffbeb;
+    --admin-rose: #ef4444;
+    --admin-rose-light: #fef2f2;
+    
+    --shopee-color: #ea580c;
+    --shopee-bg: #fff7ed;
+    --lazada-color: #1d4ed8;
+    --lazada-bg: #eff6ff;
+    --tiktok-color: #0f172a;
+    --tiktok-bg: #f8fafc;
+
+    --radius-sm: 8px;
+    --radius-md: 14px;
+    --radius-lg: 24px;
+
+    --shadow-sm: 0 4px 12px rgba(242, 123, 138, 0.03);
+    --shadow-md: 0 12px 30px -10px rgba(242, 123, 138, 0.08);
+}
+
+.history-page {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 20px 60px 20px;
+    font-family: 'Be Vietnam Pro', -apple-system, sans-serif;
+    color: var(--text-dark);
+}
+
+.page-title {
+    font-size: 32px;
+    font-weight: 900;
+    color: var(--text-dark);
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+}
+
+.page-subtitle {
+    color: var(--text-muted);
+    font-size: 15px;
+    margin: 0 0 28px 0;
+    font-weight: 500;
+}
+
+/* --- TABLE SECTION CARD --- */
+.history-card-section {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: 28px;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.history-table-wrapper-responsive {
+    width: 100%;
+    overflow-x: auto;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+}
+
+.premium-history-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    min-width: 800px;
+}
+
+.premium-history-table th {
+    padding: 14px 18px;
+    font-size: 12px;
+    font-weight: 800;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border-color);
+    background: #faf4f5;
+}
+
+.premium-history-table td {
+    padding: 16px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #334155;
+    border-bottom: 1px solid #fcf2f3;
+    vertical-align: middle;
+}
+
+.history-table-row {
+    transition: background-color 0.2s ease;
+}
+
+.history-table-row:hover td {
+    background-color: var(--peach-light);
+}
+
+.styled-order-code {
+    font-family: monospace;
+    background: #f1f5f9;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #475569;
+    font-weight: 700;
+}
+
+.time-col {
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+/* Platform Badges */
+.badge-platform {
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    display: inline-block;
+}
+
+.badge-platform.tiktok {
+    background: var(--tiktok-color);
+    color: white;
+}
+
+.badge-platform.shopee {
+    background: var(--shopee-bg);
+    color: var(--shopee-color);
+    border: 1px solid rgba(234, 88, 12, 0.15);
+}
+
+.badge-platform.lazada {
+    background: var(--lazada-bg);
+    color: var(--lazada-color);
+    border: 1px solid rgba(29, 78, 216, 0.15);
+}
+
+.badge-platform.other {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.amount-col-sales {
+    font-weight: 700;
+    color: var(--text-dark);
+}
+
+.amount-col-cashback {
+    font-weight: 800;
+    color: var(--admin-emerald);
+}
+
+.amount-col-cashback.rejected-amount {
+    color: var(--text-muted);
+    text-decoration: line-through;
+    opacity: 0.65;
+}
+
+/* Status Badges */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 800;
+    padding: 6px 14px;
+    border-radius: 50px;
+}
+
+.badge-glow-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.status-badge.waiting {
+    background: var(--admin-amber-light);
+    color: var(--admin-amber);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+}
+.status-badge.waiting .badge-glow-dot {
+    background: var(--admin-amber);
+    box-shadow: 0 0 6px var(--admin-amber);
+}
+
+.status-badge.approved {
+    background: var(--admin-emerald-light);
+    color: var(--admin-emerald);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+.status-badge.approved .badge-glow-dot {
+    background: var(--admin-emerald);
+    box-shadow: 0 0 6px var(--admin-emerald);
+}
+
+.status-badge.rejected {
+    background: var(--admin-rose-light);
+    color: var(--admin-rose);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+.status-badge.rejected .badge-glow-dot {
+    background: var(--admin-rose);
+    box-shadow: 0 0 6px var(--admin-rose);
+}
+
+/* Empty State */
+.empty-history-cell {
+    padding: 60px 0 !important;
+}
+
+.empty-history-view {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    color: var(--text-muted);
+}
+
+.empty-icon-bunny {
+    font-size: 42px;
+    opacity: 0.7;
+}
+
+.empty-history-view p {
+    font-weight: 700;
+    font-size: 14px;
+    margin: 0;
+}
+
+/* Loading State */
+.loading-history-cell {
+    padding: 60px 0 !important;
+}
+
+.pulse-loader {
+    width: 32px;
+    height: 32px;
+    background: var(--primary-color);
+    border-radius: 50%;
+    margin: 0 auto;
+    animation: pulse-ring-mini 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse-ring-mini {
+    0% { transform: scale(0.9); opacity: 0.7; box-shadow: 0 0 0 0 rgba(242, 123, 138, 0.5); }
+    70% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 10px rgba(242, 123, 138, 0); }
+    100% { transform: scale(0.9); opacity: 0.7; box-shadow: 0 0 0 0 rgba(242, 123, 138, 0); }
+}
+
+/* --- RESPONSIVE STYLE --- */
+@media (max-width: 768px) {
+    .history-page {
+        padding: 0 10px 40px;
+    }
+    
+    .page-title {
+        font-size: 26px;
+    }
+    
+    .history-card-section {
+        padding: 20px;
+    }
+}

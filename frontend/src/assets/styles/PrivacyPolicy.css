@@ -1,0 +1,157 @@
+/* --- MODERN SAAS PRIVACY POLICY BRAND STYLE SYSTEM (THỎ CASHBACK) --- */
+:root {
+    --primary-color: #f27b8a;
+    --primary-hover: #e05e6e;
+    --peach-light: #fff0f2;
+    --text-dark: #1e293b;
+    --text-muted: #64748b;
+    --border-color: #f5e4e6;
+    
+    --radius-sm: 8px;
+    --radius-md: 14px;
+    --radius-lg: 20px;
+
+    --shadow-sm: 0 4px 12px rgba(242, 123, 138, 0.03);
+    --shadow-md: 0 12px 30px -10px rgba(242, 123, 138, 0.08);
+    
+    --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.policy-page {
+    min-height: 100vh;
+    background-color: #fdf8f9;
+    padding-bottom: 80px;
+    font-family: 'Be Vietnam Pro', -apple-system, sans-serif;
+    color: var(--text-dark);
+}
+
+/* Sticky Glassmorphic Header */
+.policy-header {
+    padding: 16px 40px;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--shadow-sm);
+}
+
+/* Back Button Pill Style */
+.btn-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border: 1px solid var(--border-color);
+    border-radius: 50px;
+    background: white;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--text-muted);
+    box-shadow: var(--shadow-sm);
+    transition: all 0.25s ease;
+}
+
+.btn-icon-svg {
+    width: 16px;
+    height: 16px;
+    stroke-width: 2.5;
+}
+
+.btn-back:hover {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+    background: var(--peach-light);
+}
+
+/* Document content */
+.policy-content {
+    max-width: 820px;
+    margin: 40px auto;
+    padding: 0 24px;
+}
+
+.policy-title {
+    font-size: 34px;
+    font-weight: 900;
+    margin-bottom: 12px;
+    letter-spacing: -0.5px;
+    color: var(--text-dark);
+}
+
+.policy-subtitle {
+    font-size: 15px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin-bottom: 40px;
+    font-weight: 500;
+}
+
+/* Policy Paragraph Cards */
+.policy-card-item {
+    background-color: white;
+    border: 1.5px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 28px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s;
+}
+
+.policy-card-item:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    border-color: rgba(242, 123, 138, 0.15);
+}
+
+.policy-card-title {
+    margin: 0 0 12px 0;
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--text-dark);
+}
+
+.policy-card-text {
+    margin: 0;
+    font-size: 14.5px;
+    color: #475569;
+    line-height: 1.7;
+    font-weight: 500;
+}
+
+/* --- RESPONSIVE STYLE --- */
+@media (max-width: 768px) {
+    .policy-header {
+        padding: 14px 20px;
+    }
+    
+    .policy-content {
+        margin: 24px auto;
+    }
+    
+    .policy-title {
+        font-size: 26px;
+    }
+    
+    .policy-subtitle {
+        font-size: 14px;
+        margin-bottom: 28px;
+    }
+    
+    .policy-card-item {
+        padding: 20px;
+        margin-bottom: 16px;
+        border-radius: var(--radius-md);
+    }
+    
+    .policy-card-title {
+        font-size: 15px;
+    }
+    
+    .policy-card-text {
+        font-size: 13.5px;
+    }
+}

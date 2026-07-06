@@ -8,10 +8,14 @@ const About = ({ user }) => {
     const navigate = useNavigate();
     const guideRef = useRef(null);
     const [leaderboard, setLeaderboard] = useState([]);
+    const [loadingLeaderboard, setLoadingLeaderboard] = useState(true);
 
     const userEmail = user?.email;
+    
     useEffect(() => {
-        fetch("https://tho-hoan-tien-backend.onrender.com/api/leaderboard")
+        const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
+        setLoadingLeaderboard(true);
+        fetch(`${API}/api/leaderboard`)
             .then(async (res) => {
                 if (!res.ok) {
                     throw new Error(`HTTP ${res.status}`);
@@ -20,26 +24,28 @@ const About = ({ user }) => {
             })
             .then((data) => {
                 if (data.success) {
-                    setLeaderboard(data.data);
+                    setLeaderboard(data.data || []);
                 }
             })
-            .catch((err) => console.error(err));
+            .catch((err) => {
+                console.error("Lỗi lấy dữ liệu bảng xếp hạng:", err);
+            })
+            .finally(() => {
+                setLoadingLeaderboard(false);
+            });
     }, []);
 
     return (
         <div className="about-container cute-theme">
-
-            {/* Đã xóa Navbar ngang ở đây để nhường chỗ cho Sidebar */}
-
             {/* --- HERO SECTION --- */}
             <section className="hero-split slide-up-delay-1" style={{ paddingTop: '20px' }}>
                 <div className="hero-content-left">
-                    <div className="pill-badge floating-slow">✨ Bí kíp nhặt cà rốt</div>
+                    <div className="pill-badge floating-slow">✨ Bí kíp tích cà rốt</div>
                     <h1 className="hero-title-bubbly">
                         Mua sắm nhận hoàn tiền <br /> lên đến <span className="text-orange gradient-text">80% hoa hồng</span>
                     </h1>
                     <p className="hero-text-soft">
-                        Vẫn chốt đơn ầm ầm trên sàn quen thuộc, chỉ thêm một nhịp chuyển link qua hang Thỏ là bạn đã gom lại được phần hoa hồng siêu to khổng lồ! 🥕
+                        Vẫn chốt đơn hàng ngày trên các sàn TMĐT quen thuộc, chỉ cần dán link qua hang Thỏ để rinh ngay phần hoa hồng tích lũy siêu hấp dẫn! 🥕
                     </p>
                     <div className="action-group">
                         <button
@@ -50,7 +56,7 @@ const About = ({ user }) => {
                                     : navigate("/login")
                             }
                         >
-                            Bắt đầu ngay ➔
+                            Bắt đầu chốt đơn ➔
                         </button>
                         <button
                             className="btn-bubbly-outline shadow-hover giant-btn"
@@ -71,152 +77,162 @@ const About = ({ user }) => {
                             alt="Rabbit"
                             className="hero-rabbit floating"
                         />
-                        <div className="mini-badge badge-1 bouncing">🛍️ Shopee</div>
-                        <div className="mini-badge badge-2 bouncing-delayed">🎁 TikTok</div>
-                        <div className="mini-badge badge-3 bouncing">💙 Lazada</div>
+                        <div className="mini-badge badge-1 bouncing-slow">🛍️ Shopee</div>
+                        <div className="mini-badge badge-2 bouncing-delayed">🎁 TikTok Shop</div>
+                        <div className="mini-badge badge-3 bouncing-slow">💙 Lazada</div>
                     </div>
                 </div>
             </section>
 
-            {/* --- THỐNG KÊ BENTO BOX --- */}
+            {/* --- BENTO BOX STATISTICS --- */}
             <section className="stats-bento-section slide-up-delay-2">
                 <div className="header-center">
-                    <span className="pill-badge">🍄 Đội quân thỏ bông</span>
-                    <h2>Đang cặm cụi tích lũy mỗi ngày</h2>
+                    <span className="pill-badge">🍄 Hang thỏ nhộn nhịp</span>
+                    <h2>Cộng đồng đang tích lũy mỗi ngày</h2>
                 </div>
                 <div className="bento-grid">
-                    <div className="bento-card bg-peach shadow-hover">
+                    <div className="bento-card bg-peach-gradient shadow-hover">
                         <div className="icon-wrapper bouncing">🐰</div>
-                        <h3>1,200+</h3>
-                        <p>Thỏ con gia nhập hang</p>
+                        <h3 className="bento-stat-num">1,200+</h3>
+                        <p className="bento-stat-label">Thỏ con gia nhập hang</p>
                     </div>
-                    <div className="bento-card bg-mint shadow-hover">
+                    <div className="bento-card bg-mint-gradient shadow-hover">
                         <div className="icon-wrapper bouncing-delayed">📦</div>
-                        <h3>25k+</h3>
-                        <p>Đơn hàng đã gom</p>
+                        <h3 className="bento-stat-num">25k+</h3>
+                        <p className="bento-stat-label">Đơn hàng hoàn tất</p>
                     </div>
-                    <div className="bento-card bg-yellow shadow-hover">
+                    <div className="bento-card bg-yellow-gradient shadow-hover">
                         <div className="icon-wrapper floating">💰</div>
-                        <h3 className="gradient-text">142M+</h3>
-                        <p>Hoa hồng đã chia</p>
+                        <h3 className="bento-stat-num gradient-text">142M+</h3>
+                        <p className="bento-stat-label">Tiền hoàn đã rút</p>
                     </div>
                 </div>
             </section>
 
-            {/* --- HƯỚNG DẪN TIMELINE --- */}
+            {/* --- INSTRUCTIONS TIMELINE --- */}
             <section ref={guideRef} className="zigzag-steps-section slide-up-delay-3">
                 <div className="header-center">
-                    <span className="pill-badge">🐾 Dấu chân thỏ</span>
-                    <h2>3 nhịp đơn giản để có quà</h2>
+                    <span className="pill-badge">🐾 3 Bước Nhận Quà</span>
+                    <h2>Nhận tiền hoàn cực nhanh chóng</h2>
                 </div>
                 <div className="timeline-container">
                     <div className="timeline-item left">
                         <div className="timeline-dot shadow-hover">1</div>
                         <div className="timeline-content bubble-card">
-                            <h4>Nhắm trúng mục tiêu 🎯</h4>
-                            <p>Copy link món đồ bạn ưng ý nhất từ Shopee, Lazada hay TikTok Shop.</p>
+                            <h4>Nhắm trúng sản phẩm 🎯</h4>
+                            <p>Sao chép đường dẫn (link) sản phẩm bạn muốn mua từ ứng dụng Shopee, Lazada hoặc TikTok Shop.</p>
                         </div>
                     </div>
                     <div className="timeline-item right">
                         <div className="timeline-dot shadow-hover">2</div>
                         <div className="timeline-content bubble-card">
                             <h4>Phù phép link qua Thỏ ✨</h4>
-                            <p>Dán link vào hệ thống, Thỏ sẽ nhai và nhả ra một chiếc link xịn xò đã gắn mã của bạn.</p>
+                            <p>Dán link vào công cụ chuyển đổi trên trang Bảng điều khiển, Thỏ sẽ tạo ngay link mua hàng gắn mã hoàn tiền dành riêng cho bạn.</p>
                         </div>
                     </div>
                     <div className="timeline-item left">
                         <div className="timeline-dot shadow-hover">3</div>
                         <div className="timeline-content bubble-card">
-                            <h4>Chốt đơn và đợi lúa về 🌾</h4>
-                            <p>Bấm mua qua link vừa tạo. Tiền hoàn sẽ rủng rỉnh rơi vào túi bạn trong 24 giờ tới.</p>
+                            <h4>Chốt đơn & Rút ví rủng rỉnh 🌾</h4>
+                            <p>Tiến hành đặt mua qua link hoàn tiền. Số tiền tích lũy sẽ được tự động cộng vào Ví Thỏ để bạn rút về tài khoản ngân hàng!</p>
                         </div>
                     </div>
                 </div>
             </section>
 
-            {/* --- TOP USERS PODIUM --- */}
+            {/* --- TOP LEADERBOARD PODIUM --- */}
             <section className="podium-section slide-up-delay-4">
                 <div className="header-center">
-                    <span className="pill-badge">🏆 Bảng vàng cà rốt</span>
-                    <h2>Những tay đua kiệt xuất nhất</h2>
+                    <span className="pill-badge">🏆 Bảng vàng vinh danh</span>
+                    <h2>Những thợ săn cà rốt đỉnh nhất</h2>
                 </div>
 
-                <div className="podium-cute">
+                {loadingLeaderboard ? (
+                    <div className="leaderboard-status-msg">
+                        <div className="mini-pulse-dot"></div>
+                        <span>Đang đồng bộ bảng vàng...</span>
+                    </div>
+                ) : leaderboard.length === 0 ? (
+                    <div className="leaderboard-empty-box">
+                        <span className="empty-icon">🐰</span>
+                        <p>Bảng vàng đang đợi những đơn hàng đầu tiên được duyệt!</p>
+                    </div>
+                ) : (
+                    <div className="podium-cute">
+                        {/* Hạng 2 - Silver */}
+                        {leaderboard[1] && (
+                            <div className="podium-stand silver">
+                                <div className="avatar-bubble floating-slow">
+                                    {leaderboard[1].avatar ? (
+                                        <img src={leaderboard[1].avatar} alt="avatar" />
+                                    ) : (
+                                        <span>{(leaderboard[1].name || leaderboard[1].email || "U")[0].toUpperCase()}</span>
+                                    )}
+                                </div>
 
-                    {/* Hạng 2 - Silver */}
-                    {leaderboard[1] && (
-                        <div className="podium-stand silver">
-                            <div className="avatar-bubble floating-slow">
-                                {leaderboard[1].avatar ? (
-                                    <img src={leaderboard[1].avatar} alt="avatar" />
-                                ) : (
-                                    <span>{(leaderboard[1].name || leaderboard[1].email || "U")[0].toUpperCase()}</span>
-                                )}
-                            </div>
+                                <div className="rank-badge">🥈 Á Quân</div>
 
-                            <div className="rank-badge">🥈 Á Quân</div>
-
-                            <div className="podium-info">
-                                <strong>{leaderboard[1].name || leaderboard[1].email?.split('@')[0]}</strong>
-                                <div className="money-pill">
-                                    {leaderboard[1].cashback.toLocaleString()} đ
+                                <div className="podium-info">
+                                    <strong className="podium-username">{leaderboard[1].name || leaderboard[1].email?.split('@')[0]}</strong>
+                                    <div className="money-pill">
+                                        {Number(leaderboard[1].cashback || 0).toLocaleString("vi-VN")} đ
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
+                        )}
 
-                    {/* Hạng 1 - Gold */}
-                    {leaderboard[0] && (
-                        <div className="podium-stand gold center-stand">
-                            <div className="avatar-bubble giant bouncing">
-                                {leaderboard[0].avatar ? (
-                                    <img src={leaderboard[0].avatar} alt="avatar" />
-                                ) : (
-                                    <span>{(leaderboard[0].name || leaderboard[0].email || "U")[0].toUpperCase()}</span>
-                                )}
-                            </div>
+                        {/* Hạng 1 - Gold */}
+                        {leaderboard[0] && (
+                            <div className="podium-stand gold center-stand">
+                                <div className="avatar-bubble giant bouncing">
+                                    {leaderboard[0].avatar ? (
+                                        <img src={leaderboard[0].avatar} alt="avatar" />
+                                    ) : (
+                                        <span>{(leaderboard[0].name || leaderboard[0].email || "U")[0].toUpperCase()}</span>
+                                    )}
+                                </div>
 
-                            <div className="rank-badge floating">👑 Quán Quân</div>
+                                <div className="rank-badge gold-badge">👑 Quán Quân</div>
 
-                            <div className="podium-info">
-                                <strong>{leaderboard[0].name || leaderboard[0].email?.split('@')[0]}</strong>
-                                <div className="money-pill highlight">
-                                    {leaderboard[0].cashback.toLocaleString()} đ
+                                <div className="podium-info">
+                                    <strong className="podium-username gold-user">{leaderboard[0].name || leaderboard[0].email?.split('@')[0]}</strong>
+                                    <div className="money-pill highlight">
+                                        {Number(leaderboard[0].cashback || 0).toLocaleString("vi-VN")} đ
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
+                        )}
 
-                    {/* Hạng 3 - Bronze */}
-                    {leaderboard[2] && (
-                        <div className="podium-stand bronze">
-                            <div className="avatar-bubble floating-slow" style={{ animationDelay: "1s" }}>
-                                {leaderboard[2].avatar ? (
-                                    <img src={leaderboard[2].avatar} alt="avatar" />
-                                ) : (
-                                    <span>{(leaderboard[2].name || leaderboard[2].email || "U")[0].toUpperCase()}</span>
-                                )}
-                            </div>
+                        {/* Hạng 3 - Bronze */}
+                        {leaderboard[2] && (
+                            <div className="podium-stand bronze">
+                                <div className="avatar-bubble floating-slow" style={{ animationDelay: "1s" }}>
+                                    {leaderboard[2].avatar ? (
+                                        <img src={leaderboard[2].avatar} alt="avatar" />
+                                    ) : (
+                                        <span>{(leaderboard[2].name || leaderboard[2].email || "U")[0].toUpperCase()}</span>
+                                    )}
+                                </div>
 
-                            <div className="rank-badge">🥉 Quý Quân</div>
+                                <div className="rank-badge">🥉 Quý Quân</div>
 
-                            <div className="podium-info">
-                                <strong>{leaderboard[2].name || leaderboard[2].email?.split('@')[0]}</strong>
-                                <div className="money-pill">
-                                    {leaderboard[2].cashback.toLocaleString()} đ
+                                <div className="podium-info">
+                                    <strong className="podium-username">{leaderboard[2].name || leaderboard[2].email?.split('@')[0]}</strong>
+                                    <div className="money-pill">
+                                        {Number(leaderboard[2].cashback || 0).toLocaleString("vi-VN")} đ
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
-
-                </div>
+                        )}
+                    </div>
+                )}
             </section>
 
-            {/* --- CALL TO ACTION BONG BÓNG --- */}
+            {/* --- CALL TO ACTION --- */}
             <section className="cta-bubble-section slide-up-delay-5">
                 <div className="cta-bubble-content">
-                    <h2>Đừng để rơi rớt cà rốt nữa nhé! 🥕</h2>
-                    <p>Chỉ một thao tác nhỏ xíu trước khi chốt đơn là bạn đã tiết kiệm được ối tiền rồi đó.</p>
+                    <h2>Đừng bỏ lỡ tiền hoàn từ hôm nay! 🥕</h2>
+                    <p>Thao tác đơn giản chưa tới 10 giây giúp bạn tiết kiệm hàng triệu đồng mua sắm mỗi tháng.</p>
                     <button
                         className="btn-bubbly-primary large-btn shadow-hover"
                         onClick={() =>
@@ -225,21 +241,18 @@ const About = ({ user }) => {
                                 : navigate("/login")
                         }
                     >
-                        Tham gia hang thỏ ngay ➔
+                        Tham gia Hang Thỏ ngay ➔
                     </button>
                     {/* --- FOOTER CHÍNH SÁCH --- */}
-                    <footer style={{ textAlign: 'center', padding: '30px', marginTop: '20px', fontSize: '14px', color: '#ffffffff' }}>
-                        <span style={{ cursor: 'pointer', fontWeight: 600 }} onClick={() => navigate("/privacy-policy")}>
+                    <footer className="about-footer-nav">
+                        <span className="policy-link-hover" onClick={() => navigate("/privacy-policy")}>
                             Chính sách bảo mật & Điều khoản sử dụng
                         </span>
                     </footer>
                 </div>
-
             </section>
-            <>
-                <FloatingCarrots />
-            </>
-
+            
+            <FloatingCarrots />
         </div>
     );
 };

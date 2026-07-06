@@ -3,6 +3,37 @@ import { useNavigate } from "react-router-dom";
 import '../assets/styles/Dashboard.css';
 import FloatingCarrots from "../components/FloatingCarrots";
 
+// Beautiful SVG Icons
+const BackIcon = () => (
+    <svg className="btn-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+    </svg>
+);
+
+const LockIcon = () => (
+    <svg className="btn-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+    </svg>
+);
+
+const ClipboardIcon = () => (
+    <svg className="paste-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+    </svg>
+);
+
+const CheckCircleIcon = () => (
+    <svg className="success-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+    </svg>
+);
+
+const WarningIcon = () => (
+    <svg className="warning-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+    </svg>
+);
+
 const Dashboard = ({ user }) => {
     const navigate = useNavigate();
 
@@ -26,9 +57,9 @@ const Dashboard = ({ user }) => {
         setError("");
 
         try {
-            // Bác nhớ check xem link API này đã đổi thành link local hay deploy nhé
+            const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
             const res = await fetch(
-                "https://tho-hoan-tien-backend.onrender.com/api/convert",
+                `${API}/api/convert`,
                 {
                     method: "POST",
                     headers: {
@@ -54,43 +85,45 @@ const Dashboard = ({ user }) => {
             console.error(err);
 
             if (err.message === "Failed to fetch") {
-                setError("🐰 Gãy răng thỏ rồi! Link không được hoàn tiền.");
+                setError("Hệ thống không phản hồi. Vui lòng kiểm tra lại liên kết sản phẩm.");
             } else {
-                setError(`🐰 Gãy răng thỏ rồi! ${err.message}`);
+                setError(`${err.message}`);
             }
         } finally {
             setIsConverting(false);
         }
     };
 
+    const adminEmails = [
+        import.meta.env.VITE_ADMIN_EMAIL,
+        import.meta.env.VITE_ADMIN_EMAIL2
+    ].filter(Boolean);
+
+    const isAdmin = user && adminEmails.includes(user.email);
+
     return (
         <div className="dashboard-container">
-            {/* Header */}
+            {/* Header Navigation */}
             <div className="dashboard-header">
-                <button
-                    className="btn-back bubbly-hover"
-                    onClick={() => navigate("/")}
-                >
-                    <span className="back-icon">←</span> Về trang chủ
-                </button>
-                {user?.email === "admin@gmail.com" && (
+                <div className="dashboard-header-left">
                     <button
                         className="btn-back bubbly-hover"
-                        onClick={() => navigate("/admin")}
+                        onClick={() => navigate("/")}
                     >
-                        🔒 Admin
+                        <BackIcon />
+                        <span>Trang Chủ</span>
                     </button>
-                )}
-                <h1 className="page-title">Chuyển đổi link ✨</h1>
+                </div>
+                <h1 className="page-title-main">Chuyển đổi link hoàn tiền ✨</h1>
             </div>
 
-            {/* Quote */}
+            {/* Inspirational Quote Card */}
             <div className="quote-box">
-                <p>“Cùng nhau chia sẻ sản phẩm, cùng nhau tích lũy hoa hồng, và cùng nhau tạo thêm giá trị từ mỗi đơn hàng được ghi nhận.”</p>
-                <span className="quote-author">THỎ - HOÀN TIỀN</span>
+                <p>“Vẫn mua sắm trên các sàn bạn thích, chỉ thêm một bước nhỏ qua hang Thỏ để rinh về khoản hoa hồng tích lũy cực lớn từ mỗi đơn hàng.”</p>
+                <span className="quote-author">Thỏ Hoàn Tiền 🐰</span>
             </div>
 
-            {/* Platform Tabs */}
+            {/* Platform Selection Tabs */}
             <div className="platform-tabs">
                 <button
                     className={`tab-btn ${activeTab === 'shopee' ? 'active' : ''}`}
@@ -109,23 +142,23 @@ const Dashboard = ({ user }) => {
                     onClick={() => setActiveTab('tiktok')}
                 >
                     <span className="tab-icon">🎵</span> TikTok Shop
-                    <span className="beta-tag">BETA</span>
+                    <span className="beta-tag-new">HOT</span>
                 </button>
             </div>
 
-            {/* Input Box */}
+            {/* Input Conversion Box */}
             <div className="converter-box">
-                <label>Link sản phẩm cần chuyển đổi</label>
+                <label className="converter-input-label">Dán link sản phẩm muốn mua vào đây:</label>
                 <div className="input-wrapper">
-                    <span className="paste-icon">📋</span>
+                    <ClipboardIcon />
                     <input
                         type="text"
                         placeholder={
                             activeTab === "shopee"
-                                ? "https://shopee.vn/..."
+                                ? "https://shopee.vn/product-name.i.12345..."
                                 : activeTab === "lazada"
-                                    ? "https://www.lazada.vn/..."
-                                    : "https://shop.tiktok.com/..."
+                                    ? "https://www.lazada.vn/products/name-i12345..."
+                                    : "https://shop.tiktok.com/view/product/1234567..."
                         }
                         value={linkInput}
                         onChange={(e) => setLinkInput(e.target.value)}
@@ -138,28 +171,30 @@ const Dashboard = ({ user }) => {
                         onClick={handleConvert}
                         disabled={isConverting || !linkInput}
                     >
-                        {isConverting ? 'Đang nhai link 🐰...' : '✨ Chuyển đổi'}
+                        {isConverting ? 'Thỏ đang nhai link...' : '✨ Tạo link hoàn tiền'}
                     </button>
                 </div>
             </div>
 
-            {/* Báo lỗi */}
+            {/* Error Notification Alert */}
             {error && (
                 <div className="error-box slide-up">
-                    <span className="error-icon">⚠️</span> {error}
+                    <WarningIcon />
+                    <span>🐰 Ôi! {error}</span>
                 </div>
             )}
 
-            {/* Result Area */}
+            {/* Result Showcase Card */}
             {showResult && result && (
                 <div className="result-area slide-up">
                     <div className="result-header">
-                        <h3>Kết quả của bạn đây! 🎉</h3>
+                        <h3>Liên kết của bạn đã sẵn sàng! 🎉</h3>
                     </div>
 
                     <div className="result-card">
                         <div className="success-status">
-                            <span className="check-icon">✓</span> CHUYỂN ĐỔI THÀNH CÔNG
+                            <CheckCircleIcon />
+                            <span>ĐÃ GẮN MÃ HOÀN TIỀN THÀNH CÔNG</span>
                         </div>
 
                         <div className="product-info">
@@ -169,56 +204,61 @@ const Dashboard = ({ user }) => {
                                 className="product-img"
                             />
                             <div className="product-details">
-                                <h4>{result.product.name}</h4>
+                                <h4 className="product-details-title">{result.product.name}</h4>
                             </div>
                         </div>
 
-                        {/* --- ĐÃ SỬA LẠI KHÚC NÀY ĐỂ RÀO TRƯỚC VỤ HOA HỒNG DỰ KIẾN --- */}
+                        {/* Cashback Estimation details */}
                         <div className="cashback-estimate">
                             <div className="estimate-left">
-                                <span className="estimate-label">Hoa hồng dự kiến ⓘ</span>
-                                <div className="estimate-amount">
-                                    ≈ {result.commission.cashback.toLocaleString()} VNĐ
+                                <span className="estimate-label">Hoa hồng tích lũy ước tính ⓘ</span>
+                                <div className="estimate-amount highlight-gradient-text">
+                                    ≈ {Number(result.commission.cashback || 0).toLocaleString("vi-VN")} đ
                                 </div>
                                 <div className="original-price">
-                                    Giá sản phẩm: {result.product.price.toLocaleString()}đ
+                                    Giá bán trên sàn: {Number(result.product.price || 0).toLocaleString("vi-VN")}đ
                                 </div>
                             </div>
                         </div>
 
+                        {/* Terms and conditions info */}
                         <div className="cashback-note">
                             <b>Lưu ý từ Hang Thỏ 🐾</b>
                             <p>
-                                Con số trên là mức hoàn tiền <strong>dự kiến tối đa</strong>. Số tiền thực tế nhận được có thể thay đổi thấp hơn tùy thuộc vào ngành hàng, tài khoản mua hàng (mới/cũ) và chính sách hoa hồng của sàn tại thời điểm bạn chốt đơn.
+                                Số tiền hoàn bên trên là mức <strong>ước tính tối đa</strong>. Số tiền tích lũy thực tế nhận được có thể thay đổi tùy thuộc vào ngành hàng, ưu đãi của sàn, và việc bạn có áp dụng mã giảm giá khác lúc thanh toán hay không.
                             </p>
                         </div>
-                        {/* ------------------------------------------------------------- */}
 
+                        {/* Main Call to Action buttons */}
                         <button
                             className="btn-open-link bubbly-hover"
                             onClick={() => window.open(result.links.short, "_blank")}
                         >
-                            🔗 Mở link chốt đơn ngay
+                            🛍️ Đi đến sàn chốt đơn ngay
                         </button>
 
                         <div className="action-footer">
                             <button
                                 className="btn-secondary-action bubbly-hover"
-                                onClick={() => navigator.clipboard.writeText(result.links.short)}
+                                onClick={() => {
+                                    navigator.clipboard.writeText(result.links.short);
+                                    alert("Đã sao chép link rút gọn thành công!");
+                                }}
                             >
                                 📋 Sao chép link
                             </button>
-                            <button className="btn-secondary-action bubbly-hover">
-                                📱 Lưu QR Code
+                            <button
+                                className="btn-secondary-action bubbly-hover"
+                                onClick={() => alert("QR Code đang được tạo, bạn chờ xíu nhé!")}
+                            >
+                                📱 Tạo mã QR
                             </button>
                         </div>
                     </div>
                 </div>
-
             )}
-            <>
-                <FloatingCarrots />
-            </>
+
+            <FloatingCarrots />
         </div>
     );
 };
