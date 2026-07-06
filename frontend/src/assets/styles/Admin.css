@@ -726,3 +726,29 @@ body {
         width: 20px;
     }
 }
+
+/* Giới hạn chiều cao bảng để trang không bị quá dài */
+.table-responsive-wrapper {
+    max-height: 500px;
+    /* Chỉ hiện 500px, phần dư sẽ có thanh cuộn riêng */
+    overflow-y: auto;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+}
+
+/* Tối ưu bảng trên Mobile */
+@media (max-width: 768px) {
+
+    .at-style-table th,
+    .at-style-table td {
+        padding: 10px;
+        /* Thu nhỏ padding để hiện được nhiều cột hơn */
+        font-size: 12px;
+    }
+
+    .product-name-cell {
+        max-width: 150px;
+    }
+
+    /* Cắt bớt tên sản phẩm trên mobile */
+}

@@ -13,6 +13,7 @@ const Admin = ({ user }) => {
 
     // State cho dữ liệu Timeline đã được làm phẳng
     const [activityLog, setActivityLog] = useState([]);
+    const [visibleCount, setVisibleCount] = useState(10);
 
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
@@ -367,39 +368,28 @@ const Admin = ({ user }) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {activityLog.map((log, i) => (
+                                {activityLog.slice(0, visibleCount).map((log, i) => (
                                     <tr key={i}>
                                         <td className="time-cell">{log.time_str}</td>
                                         <td><span className="user-email-badge">{log.email}</span></td>
-                                        <td>
-                                            <span className={`merchant-badge ${(log.platform || '').toLowerCase()}`}>
-                                                {log.platform}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <div className="product-name-cell" title={log.product_name}>
-                                                {log.product_name}
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <a href={log.short_link !== "N/A" ? log.short_link : "#"} target="_blank" rel="noreferrer" className="aff-link-cell">
-                                                {log.short_link}
-                                            </a>
-                                        </td>
+                                        <td><span className={`merchant-badge ${(log.platform || '').toLowerCase()}`}>{log.platform}</span></td>
+                                        <td><div className="product-name-cell" title={log.product_name}>{log.product_name}</div></td>
+                                        <td><a href={log.short_link} target="_blank" rel="noreferrer" className="aff-link-cell">{log.short_link}</a></td>
                                     </tr>
                                 ))}
-                                {activityLog.length === 0 && (
-                                    <tr>
-                                        <td colSpan="5" className="empty-table-cell">
-                                            <div className="empty-state">
-                                                <span className="empty-icon">📭</span>
-                                                <p>Không có hoạt động tạo link nào trong khoảng thời gian này.</p>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                )}
                             </tbody>
                         </table>
+                        {visibleCount < activityLog.length && (
+                            <div style={{ textAlign: 'center', padding: '15px' }}>
+                                <button
+                                    onClick={() => setVisibleCount(prev => prev + 10)}
+                                    className="btn-filter"
+                                    style={{ background: '#e2e8f0', color: '#1e293b' }}
+                                >
+                                    Xem thêm 10 hoạt động cũ hơn
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
 
