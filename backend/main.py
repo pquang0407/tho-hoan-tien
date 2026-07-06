@@ -678,6 +678,58 @@ def get_admin_users(request: Request, start_date: str = None, end_date: str = No
     result.sort(key=lambda x: x["total_links"], reverse=True)
     return {"success": True, "data": result}
 
+@app.get("/api/leaderboard")
+def leaderboard():
+
+    orders = db.collection("orders").stream()
+
+    ranking = defaultdict(float)
+
+    for doc in orders:
+        order = doc.to_dict()
+
+        email = order.get("utm_source")
+        if not email:
+            continue
+
+        reward = float(order.get("reward", 0))
+
+        ranking[email] += reward * user_ratio
+
+    result = []
+
+    for email, total in ranking.items():
+
+        user_doc = db.collection("users").document(email).get()
+
+        avatar = ""
+        name = email.split("@")[0]
+
+        if user_doc.exists:
+            user_data = user_doc.to_dict()
+
+            avatar = user_data.get("photoURL", "") or user_data.get("avatar", "")
+
+            if user_data.get("displayName"):
+                name = user_data["displayName"]
+
+        result.append({
+            "email": email,
+            "name": name,
+            "avatar": avatar,
+            "cashback": round(total)
+        })
+
+    result.sort(
+        key=lambda x: x["cashback"],
+        reverse=True
+    )
+
+    return {
+        "success": True,
+        "data": result[:3]
+    }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
