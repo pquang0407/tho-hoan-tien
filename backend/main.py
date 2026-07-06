@@ -402,37 +402,12 @@ async def convert_link(request: Request, body: LinkRequest):
         u_ratio, a_ratio, c_percent = get_user_ratios(body.user_email)
         cashback = round(commission * u_ratio)
         publisher_income = round(commission * a_ratio)
-    elif body.platform == "lazada":
-        # LAZADA QUA ECOMOBI PASSIO
-        encoded_url = quote(body.original_url, safe='')
-        tracking_link = f"https://goeco.mobi/?token={ECOMOBI_TOKEN}&url={encoded_url}&sub1={body.user_email}&sub2={body.platform}&sub3=cashback"
-        aff_link = tracking_link
-        short_link = tracking_link
-        
-        # Trích xuất tên sản phẩm từ URL
-        product_name = "Sản phẩm Lazada"
-        if "lazada.vn/products/" in body.original_url:
-            try:
-                parts = body.original_url.split("lazada.vn/products/")[1].split("?")[0].split(".html")[0].split("-")
-                if len(parts) > 0:
-                    product_name = " ".join(parts[:-1])
-            except Exception:
-                pass
-                
-        product_image = "https://upload.wikimedia.org/wikipedia/commons/0/06/Lazada_Logo.png"
-        product_price = 0.0
-        commission = 0.0
-        cashback = 0.0
-        u_ratio, a_ratio, c_percent = get_user_ratios(body.user_email)
-        publisher_income = 0.0
-        
-    elif body.platform == "shopee":
-        # SHOPEE QUA ACCESSTRADE
-        campaign_id = SHOPEE_CAMPAIGN_ID
+    elif body.platform in ["shopee", "lazada"]:
+        campaign_id = SHOPEE_CAMPAIGN_ID if body.platform == "shopee" else LAZADA_CAMPAIGN_ID
         if not campaign_id:
             raise HTTPException(
                 status_code=400, 
-                detail="Hoàn tiền SHOPEE đang được chuẩn bị và sẽ ra mắt sớm! Hiện tại bạn hãy trải nghiệm mua sắm qua TikTok Shop nhé 🐰"
+                detail=f"Hoàn tiền {body.platform.upper()} đang được chuẩn bị và sẽ ra mắt sớm! Hiện tại bạn hãy trải nghiệm mua sắm qua TikTok Shop nhé 🐰"
             )
 
         payload = {
@@ -464,16 +439,28 @@ async def convert_link(request: Request, body: LinkRequest):
         short_link = link_data["short_link"]
         
         # Trích xuất tên sản phẩm từ URL
-        product_name = "Sản phẩm Shopee"
-        if "shopee.vn/" in body.original_url:
+        product_name = f"Sản phẩm {body.platform.title()}"
+        if body.platform == "shopee" and "shopee.vn/" in body.original_url:
             try:
                 parts = body.original_url.split("shopee.vn/")[1].split("?")[0].split("/")
                 if len(parts) > 0 and parts[0]:
                     product_name = parts[0].replace("-", " ")
             except Exception:
                 pass
+        elif body.platform == "lazada" and "lazada.vn/products/" in body.original_url:
+            try:
+                parts = body.original_url.split("lazada.vn/products/")[1].split("?")[0].split(".html")[0].split("-")
+                if len(parts) > 0:
+                    product_name = " ".join(parts[:-1])
+            except Exception:
+                pass
                 
-        product_image = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Shopee.svg/375px-Shopee.svg.png"
+        # Logo placeholder
+        if body.platform == "shopee":
+            product_image = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Shopee.svg/375px-Shopee.svg.png"
+        else:
+            product_image = "https://upload.wikimedia.org/wikipedia/commons/0/06/Lazada_Logo.png"
+            
         product_price = 0.0
         commission = 0.0
         cashback = 0.0
