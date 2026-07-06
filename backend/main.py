@@ -34,6 +34,15 @@ admin_ratio = 0.3
 REPORT_DAYS = 30
 REQUEST_TIMEOUT = 15
 
+def get_user_ratios(email: str):
+    """
+    Trả về (user_ratio, admin_ratio, cashback_percent) động theo email.
+    Đối với daonam5696@gmail.com được hưởng trọn 100% hoa hồng.
+    """
+    if email and email.strip().lower() == "daonam5696@gmail.com":
+        return 1.0, 0.0, 100
+    return user_ratio, admin_ratio, cashback_percent
+
 # 2. Khởi tạo Firebase Admin
 try:
     cred = credentials.Certificate(
@@ -220,7 +229,8 @@ def get_dashboard_analytics(orders):
             continue
 
         reward = float(order.get("reward", 0))
-        user_cashback[email] += reward * user_ratio
+        u_ratio, _, _ = get_user_ratios(email)
+        user_cashback[email] += reward * u_ratio
     
     new_users = sum(1 for d in first_seen.values() if d >= week_ago)
     chart = [{"date": (week_ago + timedelta(days=i)).strftime("%d/%m"), "count": daily_links.get(str(week_ago + timedelta(days=i)), 0)} for i in range(7)]
@@ -248,13 +258,12 @@ def get_user_wallet(email: str, request: Request):
 
     total_approved = 0
     total_pending = 0
-
     for doc in orders:
         order = doc.to_dict()
-
         confirmed = int(order.get("confirmed", 0))
         status = int(order.get("status", 0))
-        cashback = float(order.get("reward", 0)) * user_ratio
+        u_ratio, _, _ = get_user_ratios(email)
+        cashback = float(order.get("reward", 0)) * u_ratio
 
         print("==============")
         print(order)
@@ -334,6 +343,8 @@ async def convert_link(request: Request, body: LinkRequest):
             if msg == "invalid params": msg = "Link không hợp lệ hoặc chưa hỗ trợ hoàn tiền."
             elif "campaign" in msg.lower(): msg = "Sản phẩm chưa tham gia hoàn tiền."
             elif "not found" in msg.lower(): msg = "Không tìm thấy sản phẩm."
+            elif "policy" in msg.lower() or "failed to be processed" in msg.lower(): 
+                msg = "Sản phẩm này không hỗ trợ hoàn tiền đâu nè (do vi phạm chính sách sản phẩm của sàn) 🐰"
             raise HTTPException(status_code=400, detail=msg)
         data = response_data["data"]
         aff_link = data["aff_url"]
@@ -346,8 +357,9 @@ async def convert_link(request: Request, body: LinkRequest):
         
         commission_info = data.get("product_commission", {})
         commission = float(commission_info.get("amount", 0))
-        cashback = round(commission * user_ratio)
-        publisher_income = round(commission * admin_ratio)
+        u_ratio, a_ratio, c_percent = get_user_ratios(body.user_email)
+        cashback = round(commission * u_ratio)
+        publisher_income = round(commission * a_ratio)
     elif body.platform in ["shopee", "lazada"]:
         campaign_id = SHOPEE_CAMPAIGN_ID if body.platform == "shopee" else LAZADA_CAMPAIGN_ID
         if not campaign_id:
@@ -410,6 +422,7 @@ async def convert_link(request: Request, body: LinkRequest):
         product_price = 0.0
         commission = 0.0
         cashback = 0.0
+        u_ratio, a_ratio, c_percent = get_user_ratios(body.user_email)
         publisher_income = 0.0
     else:
         raise HTTPException(status_code=400, detail="Nền tảng không hợp lệ")
@@ -431,10 +444,14 @@ async def convert_link(request: Request, body: LinkRequest):
         "created_at": firestore.SERVER_TIMESTAMP,
         "status": "link_created"
     })
+    
+    # Lấy lại c_percent động cho email
+    _, _, c_percent = get_user_ratios(body.user_email)
+    
     return {
         "success": True,
         "product": {"name": product_name, "image": product_image, "price": product_price},
-        "commission": {"amount": commission, "cashback_percent": cashback_percent, "cashback": cashback, "publisher_income": publisher_income},
+        "commission": {"amount": commission, "cashback_percent": c_percent, "cashback": cashback, "publisher_income": publisher_income},
         "links": {"short": short_link, "affiliate": aff_link}
     }
 
@@ -463,6 +480,7 @@ def admin_reports(request: Request):
     result = []
     
     approved_count = pending_count = reject_count = 0
+    approved_admin_profit = 0
     
     for item in orders:
 
@@ -471,11 +489,15 @@ def admin_reports(request: Request):
 
         confirmed = int(item.get("confirmed", 0))
         status = int(item.get("status", 0))
+        email = item.get("utm_source", "")
 
         if confirmed == 1:
 
             approved_commission += commission
             approved_sales += sales
+            
+            _, a_ratio, _ = get_user_ratios(email)
+            approved_admin_profit += commission * a_ratio
 
             approved_count += 1
             order_status = 1
@@ -524,8 +546,7 @@ def admin_reports(request: Request):
             "pending_sales": round(pending_sales),
 
             "rejected_sales": round(rejected_sales),
-
-            "net_profit": round(approved_commission * admin_ratio),
+            "net_profit": round(approved_admin_profit),
 
             "generated_links": firebase["generated_links"],
 
@@ -664,12 +685,13 @@ def get_user_history(email:str, request: Request):
     orders = db.collection("orders")\
         .where("utm_source","==",email)\
         .stream()
-    result=[]
+    result = []
     for doc in orders:
         order = doc.to_dict()
         if order.get("utm_source")!=email:
             continue
-        cashback = float(order["reward"]) * user_ratio
+        u_ratio, _, _ = get_user_ratios(email)
+        cashback = float(order["reward"]) * u_ratio
         if order.get("confirmed")==1:
             status="approved"
 
@@ -800,8 +822,8 @@ def leaderboard():
             continue
 
         reward = float(order.get("reward", 0))
-
-        ranking[email] += reward * user_ratio
+        u_ratio, _, _ = get_user_ratios(email)
+        ranking[email] += reward * u_ratio
 
     result = []
 
