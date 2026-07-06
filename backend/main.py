@@ -20,8 +20,8 @@ from urllib.parse import quote
 # 1. Load cấu hình
 load_dotenv()
 AT_API_KEY = os.getenv("ACCESSTRADE_API_KEY")
-ECOMOBI_TOKEN = os.getenv("ECOMOBI_TOKEN")
-ECOMOBI_PRIVATE_TOKEN = os.getenv("ECOMOBI_PRIVATE_TOKEN")
+ECOMOBI_TOKEN = os.getenv("ECOMOBI_TOKEN", "TcnmZAzAGPXxZjYWXfIIi")
+ECOMOBI_PRIVATE_TOKEN = os.getenv("ECOMOBI_PRIVATE_TOKEN", "RULHLFzljfyxykOJaztlo")
 
 # Campaign IDs
 TIKTOK_CAMPAIGN_ID = os.getenv("TIKTOK_CAMPAIGN_ID", "6648523843406889655")
@@ -419,7 +419,7 @@ async def convert_link(request: Request, body: LinkRequest):
             except Exception:
                 pass
                 
-        product_image = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Lazada_Logo_%282019%29.svg/512px-Lazada_Logo_%282019%29.svg.png"
+        product_image = "https://upload.wikimedia.org/wikipedia/commons/0/06/Lazada_Logo.png"
         product_price = 0.0
         commission = 0.0
         cashback = 0.0
