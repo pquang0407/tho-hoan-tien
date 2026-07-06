@@ -15,10 +15,13 @@ from slowapi.middleware import SlowAPIMiddleware
 from fastapi import Request
 from slowapi import _rate_limit_exceeded_handler
 from collections import Counter, defaultdict
-from fastapi import Request
+from urllib.parse import quote
+
 # 1. Load cấu hình
 load_dotenv()
 AT_API_KEY = os.getenv("ACCESSTRADE_API_KEY")
+ECOMOBI_TOKEN = os.getenv("ECOMOBI_TOKEN")
+ECOMOBI_PRIVATE_TOKEN = os.getenv("ECOMOBI_PRIVATE_TOKEN")
 
 # Campaign IDs
 TIKTOK_CAMPAIGN_ID = os.getenv("TIKTOK_CAMPAIGN_ID", "6648523843406889655")
@@ -94,11 +97,10 @@ class WithdrawalUpdate(BaseModel):
 # ==========================================
 
 # ==========================================
-# ENDPOINT: NHẬN WEBHOOK TỪ ACCESSTRADE
+# ENDPOINT: NHẬN WEBHOOK TỪ ACCESSTRADE & ECOMOBI
 # ==========================================
 @app.api_route("/api/postback", methods=["GET", "POST"])
-async def accesstrade_postback(request: Request):
-    # 1. Quét sạch dữ liệu dù AT gửi bằng GET (URL) hay POST (JSON Body)
+async def global_postback(request: Request):
     p = dict(request.query_params)
     if request.method == "POST":
         try:
@@ -107,53 +109,93 @@ async def accesstrade_postback(request: Request):
         except Exception:
             pass
 
-    # Nếu không có transaction_id -> AT đang ping test endpoint
-    transaction_id = p.get("transaction_id")
-    if not transaction_id:
-        return {"success": True, "message": "endpoint ok"}
-    
-    # 2. Các hàm "Bọc thép" chống crash khi AT gửi chuỗi rỗng "" hoặc null
+    # 1. Nhận diện Ecomobi Passio vs AccessTrade
+    is_ecomobi = "sub1" in p or "payout" in p or "click_id" in p
+
     def safe_float(val):
-        try:
-            return float(val) if val else 0.0
-        except ValueError:
-            return 0.0
-            
+        try: return float(val) if val else 0.0
+        except ValueError: return 0.0
+        
     def safe_int(val):
-        try:
-            return int(val) if val else 0
-        except ValueError:
-            return 0
+        try: return int(val) if val else 0
+        except ValueError: return 0
 
-    # 3. Chuẩn hóa chuỗi thời gian để React không bị lỗi Invalid Date
-    sales_time_str = str(p.get("sales_time", ""))
-    if sales_time_str:
-        sales_time_str = sales_time_str.replace(" ", "T")
+    if is_ecomobi:
+        # --- ECOMOBI PASSIO WEBHOOK ---
+        transaction_id = p.get("transaction_id") or p.get("click_id")
+        if not transaction_id:
+            return {"success": True, "message": "Ecomobi ping ok"}
 
-    # 4. Ghi đè vào Firebase một cách an toàn
-    db.collection("orders").document(str(transaction_id)).set({
-        "transaction_id": str(transaction_id),
-        "order_id": str(p.get("order_id", "")),
-        "campaign_id": str(p.get("campaign_id", "")),
-        "product_id": str(p.get("product_id", "")),
-        "quantity": safe_int(p.get("quantity")),
-        "product_price": safe_float(p.get("product_price")),
-        "reward": safe_float(p.get("reward")), # Tiền hoa hồng
-        "sales_time": sales_time_str,          # Giờ đã chuẩn hóa "T"
-        "status": safe_int(p.get("status")),
-        "confirmed": safe_int(p.get("is_confirmed")),
-        "utm_source": str(p.get("utm_source", "")),
-        "utm_campaign": str(p.get("utm_campaign", "")),
-        "utm_medium": str(p.get("utm_medium", "")),
-        "utm_content": str(p.get("utm_content", "")),
-        "browser": str(p.get("browser", "")),
-        "platform": str(p.get("conversion_platform", "")),
-        "ip": str(p.get("ip", "")),
-        "created_at": firestore.SERVER_TIMESTAMP,
-        "raw": p
-    }, merge=True)
+        email = p.get("sub1", "").strip()
+        platform = p.get("sub2", "lazada").strip()
+        status_str = p.get("status", "pending").strip().lower()
+        payout = safe_float(p.get("payout", 0.0))
+        sale_amount = safe_float(p.get("sale_amount", 0.0))
+        order_id = p.get("order_id", "")
 
-    return {"success": True}
+        # approved -> confirmed = 1, status = 1
+        # rejected -> confirmed = 0, status = 2
+        # pending  -> confirmed = 0, status = 0
+        if status_str == "approved":
+            confirmed = 1
+            status_code = 1
+        elif status_str == "rejected":
+            confirmed = 0
+            status_code = 2
+        else:
+            confirmed = 0
+            status_code = 0
+
+        db.collection("orders").document(str(transaction_id)).set({
+            "transaction_id": str(transaction_id),
+            "order_id": str(order_id),
+            "campaign_id": str(platform),  # campaign_id dùng làm platform
+            "product_id": "",
+            "quantity": 1,
+            "product_price": sale_amount,
+            "reward": payout,
+            "sales_time": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+            "status": status_code,
+            "confirmed": confirmed,
+            "utm_source": email,
+            "created_at": firestore.SERVER_TIMESTAMP,
+            "raw": p
+        }, merge=True)
+
+        return {"success": True}
+    else:
+        # --- ACCESSTRADE WEBHOOK ---
+        transaction_id = p.get("transaction_id")
+        if not transaction_id:
+            return {"success": True, "message": "AccessTrade ping ok"}
+
+        sales_time_str = str(p.get("sales_time", ""))
+        if sales_time_str:
+            sales_time_str = sales_time_str.replace(" ", "T")
+
+        db.collection("orders").document(str(transaction_id)).set({
+            "transaction_id": str(transaction_id),
+            "order_id": str(p.get("order_id", "")),
+            "campaign_id": str(p.get("campaign_id", "")),
+            "product_id": str(p.get("product_id", "")),
+            "quantity": safe_int(p.get("quantity")),
+            "product_price": safe_float(p.get("product_price")),
+            "reward": safe_float(p.get("reward")),
+            "sales_time": sales_time_str,
+            "status": safe_int(p.get("status")),
+            "confirmed": safe_int(p.get("is_confirmed")),
+            "utm_source": str(p.get("utm_source", "")),
+            "utm_campaign": str(p.get("utm_campaign", "")),
+            "utm_medium": str(p.get("utm_medium", "")),
+            "utm_content": str(p.get("utm_content", "")),
+            "browser": str(p.get("browser", "")),
+            "platform": str(p.get("conversion_platform", "")),
+            "ip": str(p.get("ip", "")),
+            "created_at": firestore.SERVER_TIMESTAMP,
+            "raw": p
+        }, merge=True)
+
+        return {"success": True}
 
 def verify_admin(request: Request):
     auth_header = request.headers.get("Authorization")
@@ -360,12 +402,37 @@ async def convert_link(request: Request, body: LinkRequest):
         u_ratio, a_ratio, c_percent = get_user_ratios(body.user_email)
         cashback = round(commission * u_ratio)
         publisher_income = round(commission * a_ratio)
-    elif body.platform in ["shopee", "lazada"]:
-        campaign_id = SHOPEE_CAMPAIGN_ID if body.platform == "shopee" else LAZADA_CAMPAIGN_ID
+    elif body.platform == "lazada":
+        # LAZADA QUA ECOMOBI PASSIO
+        encoded_url = quote(body.original_url, safe='')
+        tracking_link = f"https://goeco.mobi/?token={ECOMOBI_TOKEN}&url={encoded_url}&sub1={body.user_email}&sub2={body.platform}&sub3=cashback"
+        aff_link = tracking_link
+        short_link = tracking_link
+        
+        # Trích xuất tên sản phẩm từ URL
+        product_name = "Sản phẩm Lazada"
+        if "lazada.vn/products/" in body.original_url:
+            try:
+                parts = body.original_url.split("lazada.vn/products/")[1].split("?")[0].split(".html")[0].split("-")
+                if len(parts) > 0:
+                    product_name = " ".join(parts[:-1])
+            except Exception:
+                pass
+                
+        product_image = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Lazada_Logo_%282019%29.svg/512px-Lazada_Logo_%282019%29.svg.png"
+        product_price = 0.0
+        commission = 0.0
+        cashback = 0.0
+        u_ratio, a_ratio, c_percent = get_user_ratios(body.user_email)
+        publisher_income = 0.0
+        
+    elif body.platform == "shopee":
+        # SHOPEE QUA ACCESSTRADE
+        campaign_id = SHOPEE_CAMPAIGN_ID
         if not campaign_id:
             raise HTTPException(
                 status_code=400, 
-                detail=f"Hoàn tiền {body.platform.upper()} đang được chuẩn bị và sẽ ra mắt sớm! Hiện tại bạn hãy trải nghiệm mua sắm qua TikTok Shop nhé 🐰"
+                detail="Hoàn tiền SHOPEE đang được chuẩn bị và sẽ ra mắt sớm! Hiện tại bạn hãy trải nghiệm mua sắm qua TikTok Shop nhé 🐰"
             )
 
         payload = {
@@ -397,28 +464,16 @@ async def convert_link(request: Request, body: LinkRequest):
         short_link = link_data["short_link"]
         
         # Trích xuất tên sản phẩm từ URL
-        product_name = f"Sản phẩm {body.platform.title()}"
-        if body.platform == "shopee" and "shopee.vn/" in body.original_url:
+        product_name = "Sản phẩm Shopee"
+        if "shopee.vn/" in body.original_url:
             try:
                 parts = body.original_url.split("shopee.vn/")[1].split("?")[0].split("/")
                 if len(parts) > 0 and parts[0]:
                     product_name = parts[0].replace("-", " ")
             except Exception:
                 pass
-        elif body.platform == "lazada" and "lazada.vn/products/" in body.original_url:
-            try:
-                parts = body.original_url.split("lazada.vn/products/")[1].split("?")[0].split(".html")[0].split("-")
-                if len(parts) > 0:
-                    product_name = " ".join(parts[:-1])
-            except Exception:
-                pass
                 
-        # Logo placeholder chất lượng cao
-        if body.platform == "shopee":
-            product_image = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Shopee.svg/375px-Shopee.svg.png"
-        else:
-            product_image = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Lazada_Logo_%282019%29.svg/512px-Lazada_Logo_%282019%29.svg.png"
-            
+        product_image = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Shopee.svg/375px-Shopee.svg.png"
         product_price = 0.0
         commission = 0.0
         cashback = 0.0
