@@ -730,6 +730,49 @@ def leaderboard():
         "data": result[:3]
     }
 
+@app.post("/api/admin/sync-users")
+@limiter.limit("5/minute")
+def sync_users(request: Request):
+    verify_admin(request)
+
+    page = firebase_auth.list_users()
+
+    total = 0
+
+    while page:
+        for user in page.users:
+            email = user.email
+            if not email:
+                continue
+
+            db.collection("users").document(email).set(
+                {
+                    "uid": user.uid,
+                    "email": email,
+                    "displayName": user.display_name or email.split("@")[0],
+                    "photoURL": user.photo_url or "",
+                    "phoneNumber": user.phone_number or "",
+                    "disabled": user.disabled,
+                    "createdAt": user.user_metadata.creation_timestamp,
+                    "lastSignIn": user.user_metadata.last_sign_in_timestamp,
+                    "provider": (
+                        user.provider_data[0].provider_id
+                        if user.provider_data
+                        else ""
+                    ),
+                },
+                merge=True,
+            )
+
+            total += 1
+
+        page = page.get_next_page()
+
+    return {
+        "success": True,
+        "synced": total
+    }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
