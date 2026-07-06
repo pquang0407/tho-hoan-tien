@@ -589,6 +589,138 @@ def get_user_history(email:str, request: Request):
     return {"success":True, "orders":result}
 
 # ==========================================
+# ENDPOINT: QUẢN LÝ NGƯỜI DÙNG (ADMIN)
+# ==========================================
+@app.get("/api/admin/users")
+@limiter.limit("30/minute")
+def get_admin_users(request: Request, start_date: str = None, end_date: str = None):
+    """Admin lấy danh sách chi tiết hành vi người dùng có lọc theo ngày chuẩn xác"""
+    verify_admin(request)
+    
+    conversions = db.collection("conversions").stream()
+    user_data = defaultdict(lambda: {"email": "", "total_links": 0, "recent_links": []})
+    
+    # Ép kiểu thẳng về chuẩn Date (YYYY-MM-DD) để so sánh, bỏ qua timezone
+    start_d = None
+    end_d = None
+    if start_date:
+        try: start_d = datetime.strptime(start_date, "%Y-%m-%d").date()
+        except: pass
+    if end_date:
+        try: end_d = datetime.strptime(end_date, "%Y-%m-%d").date()
+        except: pass
+
+    for doc in conversions:
+        data = doc.to_dict()
+        email = data.get("user_email")
+        if not email:
+            continue
+            
+        created_at = data.get("created_at")
+        time_str = "N/A"
+        time_val = 0
+        doc_d = None
+        
+        if created_at:
+            try:
+                # Cộng 7 tiếng để về chuẩn giờ Việt Nam
+                if hasattr(created_at, "timestamp"):
+                    time_val = created_at.timestamp()
+                    dt_vn = datetime.fromtimestamp(time_val, tz=timezone.utc) + timedelta(hours=7)
+                    doc_d = dt_vn.date()
+                    time_str = dt_vn.strftime("%d/%m/%Y %H:%M")
+                elif isinstance(created_at, str):
+                    dt_obj = datetime.fromisoformat(created_at[:19])
+                    doc_d = dt_obj.date()
+                    time_val = dt_obj.timestamp()
+                    time_str = dt_obj.strftime("%d/%m/%Y %H:%M")
+            except Exception:
+                pass
+
+        # NẾU CÓ BỘ LỌC NGÀY NHƯNG DỮ LIỆU KHÔNG PARSE ĐƯỢC NGÀY -> BỎ QUA LUÔN
+        if (start_d or end_d) and not doc_d:
+            continue
+            
+        # NẾU KHÔNG NẰM TRONG KHOẢNG NGÀY -> BỎ QUA
+        if doc_d:
+            if start_d and doc_d < start_d:
+                continue
+            if end_d and doc_d > end_d:
+                continue
+
+        user_data[email]["email"] = email
+        user_data[email]["total_links"] += 1
+        
+        user_data[email]["recent_links"].append({
+            "product_name": data.get("product_name", "N/A"),
+            "platform": data.get("platform", "N/A"),
+            "short_link": data.get("short_link", "N/A"),
+            "time_str": time_str,
+            "time_val": time_val
+        })
+        
+    result = []
+    for email, info in user_data.items():
+        info["recent_links"].sort(key=lambda x: x["time_val"], reverse=True)
+        recent = info["recent_links"]
+        # CHỈ THÊM USER NÀO CÓ TẠO LINK TRONG KHOẢNG THỜI GIAN ĐÃ LỌC
+        if info["total_links"] > 0:
+            result.append({
+                "email": email,
+                "total_links": info["total_links"],
+                "recent_links": recent
+            })
+            
+    result.sort(key=lambda x: x["total_links"], reverse=True)
+    return {"success": True, "data": result}
+
+@app.get("/api/leaderboard")
+def leaderboard():
+    orders = db.collection("orders").stream()
+    ranking = defaultdict(float)
+
+    for doc in orders:
+        order = doc.to_dict()
+        email = order.get("utm_source")
+        if not email:
+            continue
+
+        if int(order.get("confirmed", 0)) != 1:
+            continue
+
+        reward = float(order.get("reward", 0))
+        u_ratio, _, _ = get_user_ratios(email)
+        ranking[email] += reward * u_ratio
+
+    result = []
+    for email, total in ranking.items():
+        user_doc = db.collection("users").document(email).get()
+        avatar = ""
+        name = email.split("@")[0]
+
+        if user_doc.exists:
+            user_data = user_doc.to_dict()
+            avatar = user_data.get("photoURL", "") or user_data.get("avatar", "")
+            if user_data.get("displayName"):
+                name = user_data["displayName"]
+
+        result.append({
+            "email": email,
+            "name": name,
+            "avatar": avatar,
+            "cashback": round(total)
+        })
+
+    result.sort(
+        key=lambda x: x["cashback"],
+        reverse=True
+    )
+    return {
+        "success": True,
+        "data": result[:3]
+    }
+
+# ==========================================
 # ENDPOINT: SYNC USERS FROM AUTH (ADMIN)
 # ==========================================
 @app.post("/api/admin/sync-users")
