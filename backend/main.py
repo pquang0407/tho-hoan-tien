@@ -21,9 +21,9 @@ load_dotenv()
 AT_API_KEY = os.getenv("ACCESSTRADE_API_KEY")
 
 # Campaign IDs
-TIKTOK_CAMPAIGN_ID = "6648523843406889655"
-SHOPEE_CAMPAIGN_ID = ""
-LAZADA_CAMPAIGN_ID = ""
+TIKTOK_CAMPAIGN_ID = os.getenv("TIKTOK_CAMPAIGN_ID", "6648523843406889655")
+SHOPEE_CAMPAIGN_ID = os.getenv("SHOPEE_CAMPAIGN_ID", "")
+LAZADA_CAMPAIGN_ID = os.getenv("LAZADA_CAMPAIGN_ID", "")
 
 # Tài khoản admin
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL")
@@ -307,47 +307,113 @@ def get_user_wallet(email: str, request: Request):
 @app.post("/api/convert")
 @limiter.limit("30/minute") 
 async def convert_link(request: Request, body: LinkRequest):
-    if body.platform != "tiktok":
-        raise HTTPException(status_code=400, detail="Hiện tại chỉ hỗ trợ TikTok Shop")
     headers = {
         "Authorization": f"Token {AT_API_KEY}",
         "Content-Type": "application/json",
         "accept": "application/json"
     }
-    payload = {
-        "product_url": body.original_url,
-        "utm_source": body.user_email,
-        "utm_medium": body.platform,
-        "utm_campaign": "cashback"
-    }
-    response = requests.post(
-        "https://api.accesstrade.vn/v2/tiktokshop_product_feeds/create_link",
-        headers=headers,
-        json=payload,
-        timeout=REQUEST_TIMEOUT
-    )
-    if response.status_code != 200:
-        raise HTTPException(status_code=500, detail="Không thể kết nối AccessTrade")
-    response_data = response.json()
-    if not response_data.get("status"):
-        msg = response_data.get("message", "Không thể tạo link")
-        if msg == "invalid params": msg = "Link không hợp lệ hoặc chưa hỗ trợ hoàn tiền."
-        elif "campaign" in msg.lower(): msg = "Sản phẩm chưa tham gia hoàn tiền."
-        elif "not found" in msg.lower(): msg = "Không tìm thấy sản phẩm."
-        raise HTTPException(status_code=400, detail=msg)
-    data = response_data["data"]
-    aff_link = data["aff_url"]
-    short_link = data["aff_short_url"]
-    product_name = data["product_name"]
-    product_image = data["product_image"]
-    
-    price_info = data.get("product_price", {})
-    product_price = float(price_info.get("maximum_amount") or price_info.get("minimum_amount") or 0)
-    
-    commission_info = data.get("product_commission", {})
-    commission = float(commission_info.get("amount", 0))
-    cashback = round(commission * user_ratio)
-    publisher_income = round(commission * admin_ratio)
+
+    if body.platform == "tiktok":
+        payload = {
+            "product_url": body.original_url,
+            "utm_source": body.user_email,
+            "utm_medium": body.platform,
+            "utm_campaign": "cashback"
+        }
+        response = requests.post(
+            "https://api.accesstrade.vn/v2/tiktokshop_product_feeds/create_link",
+            headers=headers,
+            json=payload,
+            timeout=REQUEST_TIMEOUT
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail="Không thể kết nối AccessTrade")
+        response_data = response.json()
+        if not response_data.get("status"):
+            msg = response_data.get("message", "Không thể tạo link")
+            if msg == "invalid params": msg = "Link không hợp lệ hoặc chưa hỗ trợ hoàn tiền."
+            elif "campaign" in msg.lower(): msg = "Sản phẩm chưa tham gia hoàn tiền."
+            elif "not found" in msg.lower(): msg = "Không tìm thấy sản phẩm."
+            raise HTTPException(status_code=400, detail=msg)
+        data = response_data["data"]
+        aff_link = data["aff_url"]
+        short_link = data["aff_short_url"]
+        product_name = data["product_name"]
+        product_image = data["product_image"]
+        
+        price_info = data.get("product_price", {})
+        product_price = float(price_info.get("maximum_amount") or price_info.get("minimum_amount") or 0)
+        
+        commission_info = data.get("product_commission", {})
+        commission = float(commission_info.get("amount", 0))
+        cashback = round(commission * user_ratio)
+        publisher_income = round(commission * admin_ratio)
+    elif body.platform in ["shopee", "lazada"]:
+        campaign_id = SHOPEE_CAMPAIGN_ID if body.platform == "shopee" else LAZADA_CAMPAIGN_ID
+        if not campaign_id:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Hoàn tiền {body.platform.upper()} đang được chuẩn bị và sẽ ra mắt sớm! Hiện tại bạn hãy trải nghiệm mua sắm qua TikTok Shop nhé 🐰"
+            )
+
+        payload = {
+            "campaign_id": campaign_id,
+            "urls": [body.original_url],
+            "utm_source": body.user_email,
+            "utm_medium": body.platform,
+            "utm_campaign": "cashback"
+        }
+        response = requests.post(
+            "https://api.accesstrade.vn/v1/product_link/create",
+            headers=headers,
+            json=payload,
+            timeout=REQUEST_TIMEOUT
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail=f"Không thể kết nối AccessTrade ({response.status_code})")
+        
+        response_data = response.json()
+        if not response_data.get("success"):
+            raise HTTPException(status_code=400, detail="Không thể tạo link liên kết cho sản phẩm này.")
+            
+        success_links = response_data.get("data", {}).get("success_link", [])
+        if not success_links:
+            raise HTTPException(status_code=400, detail="Tạo link thất bại. Vui lòng kiểm tra lại liên kết sản phẩm.")
+            
+        link_data = success_links[0]
+        aff_link = link_data["aff_link"]
+        short_link = link_data["short_link"]
+        
+        # Trích xuất tên sản phẩm từ URL
+        product_name = f"Sản phẩm {body.platform.title()}"
+        if body.platform == "shopee" and "shopee.vn/" in body.original_url:
+            try:
+                parts = body.original_url.split("shopee.vn/")[1].split("?")[0].split("/")
+                if len(parts) > 0 and parts[0]:
+                    product_name = parts[0].replace("-", " ")
+            except Exception:
+                pass
+        elif body.platform == "lazada" and "lazada.vn/products/" in body.original_url:
+            try:
+                parts = body.original_url.split("lazada.vn/products/")[1].split("?")[0].split(".html")[0].split("-")
+                if len(parts) > 0:
+                    product_name = " ".join(parts[:-1])
+            except Exception:
+                pass
+                
+        # Logo placeholder chất lượng cao
+        if body.platform == "shopee":
+            product_image = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Shopee.svg/375px-Shopee.svg.png"
+        else:
+            product_image = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Lazada_Logo_%282019%29.svg/512px-Lazada_Logo_%282019%29.svg.png"
+            
+        product_price = 0.0
+        commission = 0.0
+        cashback = 0.0
+        publisher_income = 0.0
+    else:
+        raise HTTPException(status_code=400, detail="Nền tảng không hợp lệ")
+
     client_ip = request.client.host
 
     db.collection("logs").add({
@@ -705,8 +771,6 @@ def get_admin_users(request: Request, start_date: str = None, end_date: str = No
     for email, info in user_data.items():
         info["recent_links"].sort(key=lambda x: x["time_val"], reverse=True)
         recent = info["recent_links"]
-        for r in recent:
-            del r["time_val"]
         # CHỈ THÊM USER NÀO CÓ TẠO LINK TRONG KHOẢNG THỜI GIAN ĐÃ LỌC
         if info["total_links"] > 0:
             result.append({
