@@ -135,7 +135,6 @@ const About = ({ user }) => {
             </section>
 
             {/* --- TOP USERS PODIUM --- */}
-            {/* --- TOP USERS PODIUM --- */}
             <section className="podium-section slide-up-delay-4">
                 <div className="header-center">
                     <span className="pill-badge">🏆 Bảng vàng cà rốt</span>
@@ -144,82 +143,68 @@ const About = ({ user }) => {
 
                 <div className="podium-cute">
 
-                    {/* Hạng 2 */}
+                    {/* Hạng 2 - Silver */}
                     {leaderboard[1] && (
                         <div className="podium-stand silver">
                             <div className="avatar-bubble floating-slow">
                                 {leaderboard[1].avatar ? (
-                                    <img
-                                        src={leaderboard[1].avatar}
-                                        alt={leaderboard[1].name}
-                                    />
+                                    <img src={leaderboard[1].avatar} alt="avatar" />
                                 ) : (
-                                    leaderboard[1].name[0].toUpperCase()
+                                    <span>{(leaderboard[1].name || leaderboard[1].email || "U")[0].toUpperCase()}</span>
                                 )}
                             </div>
 
-                            <span className="rank-emoji">🥈</span>
+                            <div className="rank-badge">🥈 Á Quân</div>
 
                             <div className="podium-info">
-                                <strong>{leaderboard[1].name}</strong>
-                                <p className="money">
+                                <strong>{leaderboard[1].name || leaderboard[1].email?.split('@')[0]}</strong>
+                                <div className="money-pill">
                                     {leaderboard[1].cashback.toLocaleString()} đ
-                                </p>
+                                </div>
                             </div>
                         </div>
                     )}
 
-                    {/* Hạng 1 */}
+                    {/* Hạng 1 - Gold */}
                     {leaderboard[0] && (
                         <div className="podium-stand gold center-stand">
                             <div className="avatar-bubble giant bouncing">
                                 {leaderboard[0].avatar ? (
-                                    <img
-                                        src={leaderboard[0].avatar}
-                                        alt={leaderboard[0].name}
-                                    />
+                                    <img src={leaderboard[0].avatar} alt="avatar" />
                                 ) : (
-                                    leaderboard[0].name[0].toUpperCase()
+                                    <span>{(leaderboard[0].name || leaderboard[0].email || "U")[0].toUpperCase()}</span>
                                 )}
                             </div>
 
-                            <span className="rank-emoji floating">👑</span>
+                            <div className="rank-badge floating">👑 Quán Quân</div>
 
                             <div className="podium-info">
-                                <strong>{leaderboard[0].name}</strong>
-
-                                <p className="money highlight gradient-text">
+                                <strong>{leaderboard[0].name || leaderboard[0].email?.split('@')[0]}</strong>
+                                <div className="money-pill highlight">
                                     {leaderboard[0].cashback.toLocaleString()} đ
-                                </p>
+                                </div>
                             </div>
                         </div>
                     )}
 
-                    {/* Hạng 3 */}
+                    {/* Hạng 3 - Bronze */}
                     {leaderboard[2] && (
                         <div className="podium-stand bronze">
-                            <div
-                                className="avatar-bubble floating-slow"
-                                style={{ animationDelay: "1s" }}
-                            >
+                            <div className="avatar-bubble floating-slow" style={{ animationDelay: "1s" }}>
                                 {leaderboard[2].avatar ? (
-                                    <img
-                                        src={leaderboard[2].avatar}
-                                        alt={leaderboard[2].name}
-                                    />
+                                    <img src={leaderboard[2].avatar} alt="avatar" />
                                 ) : (
-                                    leaderboard[2].name[0].toUpperCase()
+                                    <span>{(leaderboard[2].name || leaderboard[2].email || "U")[0].toUpperCase()}</span>
                                 )}
                             </div>
 
-                            <span className="rank-emoji">🥉</span>
+                            <div className="rank-badge">🥉 Quý Quân</div>
 
                             <div className="podium-info">
-                                <strong>{leaderboard[2].name}</strong>
-
-                                <p className="money">
+                                <strong>{leaderboard[2].name || leaderboard[2].email?.split('@')[0]}</strong>
+                                <div className="money-pill">
                                     {leaderboard[2].cashback.toLocaleString()} đ
-                                </p>
+                                </div>
                             </div>
                         </div>
                     )}
