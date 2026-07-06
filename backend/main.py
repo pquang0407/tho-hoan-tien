@@ -211,9 +211,16 @@ def get_dashboard_analytics(orders):
 
     for order in orders:
         email = order.get("utm_source")
-        if not email: continue
-        cashback = float(order.get("reward",0)) * user_ratio
-        user_cashback[email] += cashback
+        if not email:
+            continue
+
+        confirmed = int(order.get("confirmed", 0))
+
+        if confirmed != 1:
+            continue
+
+        reward = float(order.get("reward", 0))
+        user_cashback[email] += reward * user_ratio
     
     new_users = sum(1 for d in first_seen.values() if d >= week_ago)
     chart = [{"date": (week_ago + timedelta(days=i)).strftime("%d/%m"), "count": daily_links.get(str(week_ago + timedelta(days=i)), 0)} for i in range(7)]
@@ -391,9 +398,12 @@ def admin_reports(request: Request):
         commission = float(item.get("reward",0))
         sales = float(item.get("product_price",0))
         
-        total_commission += commission 
-        total_sales += sales
-        net_profit += commission * admin_ratio 
+        confirmed = int(item.get("confirmed", 0))
+
+        if confirmed == 1:
+            total_commission += commission
+            total_sales += sales
+            net_profit += commission * admin_ratio
         
         if item.get("confirmed") == 1:
             status = 1
@@ -692,8 +702,13 @@ def leaderboard():
         if not email:
             continue
 
-        reward = float(order.get("reward", 0))
+        confirmed = int(order.get("confirmed", 0))
 
+        # Chỉ tính đơn đã duyệt
+        if confirmed != 1:
+            continue
+
+        reward = float(order.get("reward", 0))
         ranking[email] += reward * user_ratio
 
     result = []
