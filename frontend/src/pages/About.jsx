@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../assets/styles/About.css";
 import FloatingCarrots from "../components/FloatingCarrots";
@@ -7,8 +7,24 @@ import rabbit from "../assets/images/rabbit.png";
 const About = ({ user }) => {
     const navigate = useNavigate();
     const guideRef = useRef(null);
+    const [leaderboard, setLeaderboard] = useState([]);
 
     const userEmail = user?.email;
+    useEffect(() => {
+        fetch("https://tho-hoan-tien-backend.onrender.com/api/leaderboard")
+            .then(async (res) => {
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}`);
+                }
+                return res.json();
+            })
+            .then((data) => {
+                if (data.success) {
+                    setLeaderboard(data.data);
+                }
+            })
+            .catch((err) => console.error(err));
+    }, []);
 
     return (
         <div className="about-container cute-theme">
@@ -119,38 +135,95 @@ const About = ({ user }) => {
             </section>
 
             {/* --- TOP USERS PODIUM --- */}
+            {/* --- TOP USERS PODIUM --- */}
             <section className="podium-section slide-up-delay-4">
                 <div className="header-center">
                     <span className="pill-badge">🏆 Bảng vàng cà rốt</span>
                     <h2>Những tay đua kiệt xuất nhất</h2>
                 </div>
+
                 <div className="podium-cute">
-                    <div className="podium-stand silver">
-                        <div className="avatar-bubble floating-slow">H</div>
-                        <span className="rank-emoji">🥈</span>
-                        <div className="podium-info">
-                            <strong>Thỏ Nâu</strong>
-                            <p className="money">3.1M đ</p>
+
+                    {/* Hạng 2 */}
+                    {leaderboard[1] && (
+                        <div className="podium-stand silver">
+                            <div className="avatar-bubble floating-slow">
+                                {leaderboard[1].avatar ? (
+                                    <img
+                                        src={leaderboard[1].avatar}
+                                        alt={leaderboard[1].name}
+                                    />
+                                ) : (
+                                    leaderboard[1].name[0].toUpperCase()
+                                )}
+                            </div>
+
+                            <span className="rank-emoji">🥈</span>
+
+                            <div className="podium-info">
+                                <strong>{leaderboard[1].name}</strong>
+                                <p className="money">
+                                    {leaderboard[1].cashback.toLocaleString()} đ
+                                </p>
+                            </div>
                         </div>
-                    </div>
-                    <div className="podium-stand gold center-stand">
-                        <div className="avatar-bubble giant bouncing">
-                            <img src="https://ui-avatars.com/api/?name=Huệ&background=random" alt="avatar" />
+                    )}
+
+                    {/* Hạng 1 */}
+                    {leaderboard[0] && (
+                        <div className="podium-stand gold center-stand">
+                            <div className="avatar-bubble giant bouncing">
+                                {leaderboard[0].avatar ? (
+                                    <img
+                                        src={leaderboard[0].avatar}
+                                        alt={leaderboard[0].name}
+                                    />
+                                ) : (
+                                    leaderboard[0].name[0].toUpperCase()
+                                )}
+                            </div>
+
+                            <span className="rank-emoji floating">👑</span>
+
+                            <div className="podium-info">
+                                <strong>{leaderboard[0].name}</strong>
+
+                                <p className="money highlight gradient-text">
+                                    {leaderboard[0].cashback.toLocaleString()} đ
+                                </p>
+                            </div>
                         </div>
-                        <span className="rank-emoji floating">👑</span>
-                        <div className="podium-info">
-                            <strong>Thỏ Trắng</strong>
-                            <p className="money highlight gradient-text">3.9M đ</p>
+                    )}
+
+                    {/* Hạng 3 */}
+                    {leaderboard[2] && (
+                        <div className="podium-stand bronze">
+                            <div
+                                className="avatar-bubble floating-slow"
+                                style={{ animationDelay: "1s" }}
+                            >
+                                {leaderboard[2].avatar ? (
+                                    <img
+                                        src={leaderboard[2].avatar}
+                                        alt={leaderboard[2].name}
+                                    />
+                                ) : (
+                                    leaderboard[2].name[0].toUpperCase()
+                                )}
+                            </div>
+
+                            <span className="rank-emoji">🥉</span>
+
+                            <div className="podium-info">
+                                <strong>{leaderboard[2].name}</strong>
+
+                                <p className="money">
+                                    {leaderboard[2].cashback.toLocaleString()} đ
+                                </p>
+                            </div>
                         </div>
-                    </div>
-                    <div className="podium-stand bronze">
-                        <div className="avatar-bubble floating-slow" style={{ animationDelay: '1s' }}>V</div>
-                        <span className="rank-emoji">🥉</span>
-                        <div className="podium-info">
-                            <strong>Thỏ Xám</strong>
-                            <p className="money">2.8M đ</p>
-                        </div>
-                    </div>
+                    )}
+
                 </div>
             </section>
 
