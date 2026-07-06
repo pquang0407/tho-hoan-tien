@@ -387,43 +387,56 @@ def admin_reports(request: Request):
     analytics = get_dashboard_analytics(orders)
     
     total_orders = len(orders)
-    total_commission = 0
-    total_sales = 0
-    net_profit = 0
+    approved_commission = 0
+    pending_commission = 0
+    rejected_commission = 0
+
+    approved_sales = 0
+    pending_sales = 0
+    rejected_sales = 0
     result = []
     
     approved_count = pending_count = reject_count = 0
     
     for item in orders:
-        commission = float(item.get("reward",0))
-        sales = float(item.get("product_price",0))
-        
+
+        commission = float(item.get("reward", 0))
+        sales = float(item.get("product_price", 0))
+
         confirmed = int(item.get("confirmed", 0))
+        status = int(item.get("status", 0))
 
         if confirmed == 1:
-            total_commission += commission
-            total_sales += sales
-            net_profit += commission * admin_ratio
-        
-        if item.get("confirmed") == 1:
-            status = 1
-            approved_count += 1
 
-        elif item.get("status") == 2:
-            status = 2
+            approved_commission += commission
+            approved_sales += sales
+
+            approved_count += 1
+            order_status = 1
+
+        elif status == 2:
+
+            rejected_commission += commission
+            rejected_sales += sales
+
             reject_count += 1
+            order_status = 2
 
         else:
-            status = 0
+
+            pending_commission += commission
+            pending_sales += sales
+
             pending_count += 1
-            
+            order_status = 0
+
         result.append({
             "order_id": item.get("order_id"),
             "order_time": item.get("sales_time"),
             "campaign_name": item.get("campaign_id"),
             "sales_amount": sales,
             "pub_commission": commission,
-            "order_status": status,
+            "order_status": order_status,
             "utm_source": item.get("utm_source", "")
         })
         
@@ -431,12 +444,29 @@ def admin_reports(request: Request):
     return {
         "success": True,
         "summary": {
+
             "conversions": total_orders,
-            "total_commission": round(total_commission),
-            "total_sales": round(total_sales),
-            "net_profit": round(net_profit),
+
+            "approved_commission": round(approved_commission),
+
+            "pending_commission": round(pending_commission),
+
+            "rejected_commission": round(rejected_commission),
+
+            "approved_sales": round(approved_sales),
+
+            "pending_sales": round(pending_sales),
+
+            "rejected_sales": round(rejected_sales),
+
+            "net_profit": round(approved_commission * admin_ratio),
+
             "generated_links": firebase["generated_links"],
-            "users": firebase["users"], "logs": firebase["logs"]
+
+            "users": firebase["users"],
+
+            "logs": firebase["logs"]
+
         },
         "analytics": {**analytics, "order_status": {"approved": approved_count, "pending": pending_count, "rejected": reject_count}},
         "orders": result[:30]
@@ -702,13 +732,11 @@ def leaderboard():
         if not email:
             continue
 
-        confirmed = int(order.get("confirmed", 0))
-
-        # Chỉ tính đơn đã duyệt
-        if confirmed != 1:
+        if int(order.get("confirmed", 0)) != 1:
             continue
 
         reward = float(order.get("reward", 0))
+
         ranking[email] += reward * user_ratio
 
     result = []
