@@ -1,6 +1,6 @@
 fastapi
 uvicorn
-firebase-admin
-python-dotenv
 requests
+python-dotenv
+firebase-admin
 slowapi
