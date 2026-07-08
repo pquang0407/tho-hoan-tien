@@ -21,6 +21,7 @@ from urllib.parse import quote
 # 1. Load cấu hình
 load_dotenv()
 SHOPEE_AFFILIATE_ID = os.getenv("SHOPEE_AFFILIATE_ID", "17367900164")
+ENABLE_SHOPEE = os.getenv("ENABLE_SHOPEE", "false").lower() == "true"
 AT_API_KEY = os.getenv("ACCESSTRADE_API_KEY")
 ECOMOBI_TOKEN = os.getenv("ECOMOBI_TOKEN", "TcnmZAzAGPXxZjYWXfIIi")
 ECOMOBI_PRIVATE_TOKEN = os.getenv("ECOMOBI_PRIVATE_TOKEN", "RULHLFzljfyxykOJaztlo")
@@ -413,6 +414,11 @@ async def convert_link(request: Request, body: LinkRequest):
         cashback = round(commission * u_ratio)
         publisher_income = round(commission * a_ratio)
     elif body.platform == "shopee":
+        if not ENABLE_SHOPEE:
+            raise HTTPException(
+                status_code=400,
+                detail="Hoàn tiền Shopee đang được chuẩn bị và sẽ ra mắt sớm! Hiện tại bạn hãy trải nghiệm mua sắm qua TikTok Shop nhé 🐰"
+            )
         product_name = f"Sản phẩm Shopee"
         product_image = ""
         product_price = 0.0
