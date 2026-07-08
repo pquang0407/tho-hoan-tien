@@ -1,5 +1,6 @@
 import os
 import requests
+import json
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -19,6 +20,7 @@ from urllib.parse import quote
 
 # 1. Load cấu hình
 load_dotenv()
+SHOPEE_AFFILIATE_ID = os.getenv("SHOPEE_AFFILIATE_ID", "17367900164")
 AT_API_KEY = os.getenv("ACCESSTRADE_API_KEY")
 ECOMOBI_TOKEN = os.getenv("ECOMOBI_TOKEN", "TcnmZAzAGPXxZjYWXfIIi")
 ECOMOBI_PRIVATE_TOKEN = os.getenv("ECOMOBI_PRIVATE_TOKEN", "RULHLFzljfyxykOJaztlo")
@@ -48,14 +50,22 @@ def get_user_ratios(email: str):
 
 # 2. Khởi tạo Firebase Admin
 try:
-    cred = credentials.Certificate(
-        os.path.join(os.path.dirname(__file__), "firebase-key.json")
-    )
-    firebase_admin.initialize_app(cred)
-    db = firestore.client()
-    print("Kết nối Firebase thành công!")
+    firebase_creds_json = os.getenv("FIREBASE_CREDENTIALS")
+    if firebase_creds_json:
+        creds_dict = json.loads(firebase_creds_json)
+        cred = credentials.Certificate(creds_dict)
+        firebase_admin.initialize_app(cred)
+        db = firestore.client()
+        print("Firebase connected successfully via Env Var!")
+    else:
+        cred = credentials.Certificate(
+            os.path.join(os.path.dirname(__file__), "firebase-key.json")
+        )
+        firebase_admin.initialize_app(cred)
+        db = firestore.client()
+        print("Firebase connected successfully via Local File!")
 except Exception as e:
-    print(f"Lỗi khởi tạo Firebase: {e}")
+    print(f"Firebase initialization error: {e}")
 
 # 3. Khởi tạo FastAPI
 app = FastAPI()
@@ -402,12 +412,46 @@ async def convert_link(request: Request, body: LinkRequest):
         u_ratio, a_ratio, c_percent = get_user_ratios(body.user_email)
         cashback = round(commission * u_ratio)
         publisher_income = round(commission * a_ratio)
-    elif body.platform in ["shopee", "lazada"]:
-        campaign_id = SHOPEE_CAMPAIGN_ID if body.platform == "shopee" else LAZADA_CAMPAIGN_ID
+    elif body.platform == "shopee":
+        product_name = f"Sản phẩm Shopee"
+        product_image = ""
+        product_price = 0.0
+        commission = 0.0
+
+        try:
+            data_api_url = f"https://data.addlivetag.com/product-data/product-data.php?url={quote(body.original_url)}"
+            response_data = requests.get(data_api_url, timeout=REQUEST_TIMEOUT)
+            if response_data.status_code == 200:
+                res_json = response_data.json()
+                if res_json.get("status") == "success" and res_json.get("productInfo"):
+                    p_info = res_json["productInfo"]
+                    product_name = p_info.get("productName", product_name)
+                    product_price = float(p_info.get("price", 0.0))
+                    product_image = p_info.get("imageUrl", "")
+                    commission = float(p_info.get("commission", 0.0))
+        except Exception as e:
+            print(f"Shopee Product Data API error: {e}")
+
+        if not product_image:
+            product_image = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Shopee.svg/375px-Shopee.svg.png"
+
+        # 2. Tạo link an_redir trực tiếp
+        sanitized_email = body.user_email.replace("-", "_").replace("@", "_at_").replace(".", "_")
+        sub_id = f"hangthocashback-{sanitized_email}"
+        encoded_url = quote(body.original_url, safe="")
+        aff_link = f"https://s.shopee.vn/an_redir?origin_link={encoded_url}&affiliate_id={SHOPEE_AFFILIATE_ID}&sub_id={sub_id}"
+        short_link = aff_link
+
+        u_ratio, a_ratio, c_percent = get_user_ratios(body.user_email)
+        cashback = round(commission * u_ratio)
+        publisher_income = round(commission * a_ratio)
+
+    elif body.platform == "lazada":
+        campaign_id = LAZADA_CAMPAIGN_ID
         if not campaign_id:
             raise HTTPException(
                 status_code=400, 
-                detail=f"Hoàn tiền {body.platform.upper()} đang được chuẩn bị và sẽ ra mắt sớm! Hiện tại bạn hãy trải nghiệm mua sắm qua TikTok Shop nhé 🐰"
+                detail="Hoàn tiền Lazada đang được chuẩn bị và sẽ ra mắt sớm! Hiện tại bạn hãy trải nghiệm mua sắm qua TikTok Shop nhé 🐰"
             )
 
         payload = {
@@ -439,15 +483,8 @@ async def convert_link(request: Request, body: LinkRequest):
         short_link = link_data["short_link"]
         
         # Trích xuất tên sản phẩm từ URL
-        product_name = f"Sản phẩm {body.platform.title()}"
-        if body.platform == "shopee" and "shopee.vn/" in body.original_url:
-            try:
-                parts = body.original_url.split("shopee.vn/")[1].split("?")[0].split("/")
-                if len(parts) > 0 and parts[0]:
-                    product_name = parts[0].replace("-", " ")
-            except Exception:
-                pass
-        elif body.platform == "lazada" and "lazada.vn/products/" in body.original_url:
+        product_name = f"Sản phẩm Lazada"
+        if "lazada.vn/products/" in body.original_url:
             try:
                 parts = body.original_url.split("lazada.vn/products/")[1].split("?")[0].split(".html")[0].split("-")
                 if len(parts) > 0:
@@ -455,11 +492,7 @@ async def convert_link(request: Request, body: LinkRequest):
             except Exception:
                 pass
                 
-        # Logo placeholder
-        if body.platform == "shopee":
-            product_image = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Shopee.svg/375px-Shopee.svg.png"
-        else:
-            product_image = "https://upload.wikimedia.org/wikipedia/commons/0/06/Lazada_Logo.png"
+        product_image = "https://upload.wikimedia.org/wikipedia/commons/0/06/Lazada_Logo.png"
             
         product_price = 0.0
         commission = 0.0
