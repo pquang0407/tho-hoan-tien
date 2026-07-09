@@ -1,6 +1,18 @@
 {
   "rewrites": [
     {
+      "source": "/thohoantien-sp/:code",
+      "destination": "https://tho-hoan-tien-backend.onrender.com/thohoantien-sp/:code"
+    },
+    {
+      "source": "/thohoantien-tik/:code",
+      "destination": "https://tho-hoan-tien-backend.onrender.com/thohoantien-tik/:code"
+    },
+    {
+      "source": "/thohoantien-laz/:code",
+      "destination": "https://tho-hoan-tien-backend.onrender.com/thohoantien-laz/:code"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
