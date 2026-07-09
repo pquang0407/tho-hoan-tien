@@ -217,6 +217,44 @@ const Admin = ({ user }) => {
         }
     };
 
+    const handleImportShopeeExcel = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (!window.confirm(`Xác nhận nhập đơn hàng từ file Excel Shopee "${file.name}"?`)) {
+            e.target.value = "";
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+            const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
+            const token = await user.getIdToken();
+            const res = await fetch(`${API}/api/admin/import-shopee-report`, {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            const data = await res.json();
+            if (res.ok && data.success) {
+                alert(data.message || "Nhập báo cáo Shopee thành công!");
+                fetchAccessTradeReport();
+            } else {
+                alert(data.detail || "Nhập báo cáo Shopee thất bại!");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Có lỗi xảy ra khi gửi file lên server!");
+        } finally {
+            e.target.value = "";
+        }
+    };
+
     const handleApproveWithdrawal = async (id) => {
         if (!window.confirm("Xác nhận đã chuyển khoản thành công yêu cầu này?")) return;
         const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -355,6 +393,17 @@ const Admin = ({ user }) => {
                         <SyncIcon />
                         <span>{syncLoading ? "Đang đồng bộ..." : "Đồng bộ TV"}</span>
                     </button>
+                    <button className="btn-action-primary" onClick={() => document.getElementById("shopee-import-input").click()} style={{ backgroundColor: "#ff5722", color: "#fff" }}>
+                        <ExcelIcon />
+                        <span>Nhập Shopee Excel</span>
+                    </button>
+                    <input
+                        type="file"
+                        id="shopee-import-input"
+                        accept=".xlsx, .xls"
+                        style={{ display: "none" }}
+                        onChange={handleImportShopeeExcel}
+                    />
                     <button className="btn-action-refresh" onClick={() => { fetchAccessTradeReport(); fetchWithdrawals(); fetchUsersList(); }}>
                         <RefreshIcon />
                         <span>Làm Mới</span>
