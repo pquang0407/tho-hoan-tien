@@ -1,15 +1,24 @@
 {
   "rewrites": [
     {
-      "source": "/thohoantien-sp/:code",
+      "source": "/:code",
+      "has": [
+        { "type": "host", "value": "shopee.tho-hoantien.com" }
+      ],
       "destination": "https://tho-hoan-tien-backend.onrender.com/thohoantien-sp/:code"
     },
     {
-      "source": "/thohoantien-tik/:code",
+      "source": "/:code",
+      "has": [
+        { "type": "host", "value": "tiktok.tho-hoantien.com" }
+      ],
       "destination": "https://tho-hoan-tien-backend.onrender.com/thohoantien-tik/:code"
     },
     {
-      "source": "/thohoantien-laz/:code",
+      "source": "/:code",
+      "has": [
+        { "type": "host", "value": "lazada.tho-hoantien.com" }
+      ],
       "destination": "https://tho-hoan-tien-backend.onrender.com/thohoantien-laz/:code"
     },
     {
