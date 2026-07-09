@@ -11,6 +11,7 @@ import Admin from "./pages/Admin";
 import History from "./pages/History";
 import Wallet from "./pages/Wallet";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import SilentRedirect from "./pages/SilentRedirect";
 
 import DashboardLayout from "./components/DashboardLayout";
 
@@ -109,6 +110,10 @@ function App() {
             )
           }
         />
+
+        <Route path="/thohoantien-sp/:code" element={<SilentRedirect />} />
+        <Route path="/thohoantien-tik/:code" element={<SilentRedirect />} />
+        <Route path="/thohoantien-laz/:code" element={<SilentRedirect />} />
 
         <Route
           path="*"
