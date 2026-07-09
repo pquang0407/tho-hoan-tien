@@ -20,16 +20,14 @@ from urllib.parse import quote
 
 # 1. Load cấu hình
 load_dotenv()
-SHOPEE_AFFILIATE_ID = os.getenv("SHOPEE_AFFILIATE_ID", "17367900164")
+SHOPEE_AFFILIATE_ID = os.getenv("SHOPEE_AFFILIATE_ID")
 ENABLE_SHOPEE = os.getenv("ENABLE_SHOPEE", "false").lower() == "true"
 AT_API_KEY = os.getenv("ACCESSTRADE_API_KEY")
-ECOMOBI_TOKEN = os.getenv("ECOMOBI_TOKEN", "TcnmZAzAGPXxZjYWXfIIi")
-ECOMOBI_PRIVATE_TOKEN = os.getenv("ECOMOBI_PRIVATE_TOKEN", "RULHLFzljfyxykOJaztlo")
 
 # Campaign IDs
-TIKTOK_CAMPAIGN_ID = os.getenv("TIKTOK_CAMPAIGN_ID", "6648523843406889655")
-SHOPEE_CAMPAIGN_ID = os.getenv("SHOPEE_CAMPAIGN_ID", "")
-LAZADA_CAMPAIGN_ID = os.getenv("LAZADA_CAMPAIGN_ID", "")
+TIKTOK_CAMPAIGN_ID = os.getenv("TIKTOK_CAMPAIGN_ID")
+SHOPEE_CAMPAIGN_ID = os.getenv("SHOPEE_CAMPAIGN_ID")
+LAZADA_CAMPAIGN_ID = os.getenv("LAZADA_CAMPAIGN_ID")
 
 # Tài khoản admin
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL")
@@ -108,7 +106,7 @@ class WithdrawalUpdate(BaseModel):
 # ==========================================
 
 # ==========================================
-# ENDPOINT: NHẬN WEBHOOK TỪ ACCESSTRADE & ECOMOBI
+# ENDPOINT: NHẬN WEBHOOK TỪ ACCESSTRADE
 # ==========================================
 @app.api_route("/api/postback", methods=["GET", "POST"])
 async def global_postback(request: Request):
@@ -120,9 +118,6 @@ async def global_postback(request: Request):
         except Exception:
             pass
 
-    # 1. Nhận diện Ecomobi Passio vs AccessTrade
-    is_ecomobi = "sub1" in p or "payout" in p or "click_id" in p
-
     def safe_float(val):
         try: return float(val) if val else 0.0
         except ValueError: return 0.0
@@ -131,82 +126,38 @@ async def global_postback(request: Request):
         try: return int(val) if val else 0
         except ValueError: return 0
 
-    if is_ecomobi:
-        # --- ECOMOBI PASSIO WEBHOOK ---
-        transaction_id = p.get("transaction_id") or p.get("click_id")
-        if not transaction_id:
-            return {"success": True, "message": "Ecomobi ping ok"}
+    # --- ACCESSTRADE WEBHOOK ---
+    transaction_id = p.get("transaction_id")
+    if not transaction_id:
+        return {"success": True, "message": "AccessTrade ping ok"}
 
-        email = p.get("sub1", "").strip()
-        platform = p.get("sub2", "lazada").strip()
-        status_str = p.get("status", "pending").strip().lower()
-        payout = safe_float(p.get("payout", 0.0))
-        sale_amount = safe_float(p.get("sale_amount", 0.0))
-        order_id = p.get("order_id", "")
+    sales_time_str = str(p.get("sales_time", ""))
+    if sales_time_str:
+        sales_time_str = sales_time_str.replace(" ", "T")
 
-        # approved -> confirmed = 1, status = 1
-        # rejected -> confirmed = 0, status = 2
-        # pending  -> confirmed = 0, status = 0
-        if status_str == "approved":
-            confirmed = 1
-            status_code = 1
-        elif status_str == "rejected":
-            confirmed = 0
-            status_code = 2
-        else:
-            confirmed = 0
-            status_code = 0
+    db.collection("orders").document(str(transaction_id)).set({
+        "transaction_id": str(transaction_id),
+        "order_id": str(p.get("order_id", "")),
+        "campaign_id": str(p.get("campaign_id", "")),
+        "product_id": str(p.get("product_id", "")),
+        "quantity": safe_int(p.get("quantity")),
+        "product_price": safe_float(p.get("product_price")),
+        "reward": safe_float(p.get("reward")),
+        "sales_time": sales_time_str,
+        "status": safe_int(p.get("status")),
+        "confirmed": safe_int(p.get("is_confirmed")),
+        "utm_source": str(p.get("utm_source", "")),
+        "utm_campaign": str(p.get("utm_campaign", "")),
+        "utm_medium": str(p.get("utm_medium", "")),
+        "utm_content": str(p.get("utm_content", "")),
+        "browser": str(p.get("browser", "")),
+        "platform": str(p.get("conversion_platform", "")),
+        "ip": str(p.get("ip", "")),
+        "created_at": firestore.SERVER_TIMESTAMP,
+        "raw": p
+    }, merge=True)
 
-        db.collection("orders").document(str(transaction_id)).set({
-            "transaction_id": str(transaction_id),
-            "order_id": str(order_id),
-            "campaign_id": str(platform),  # campaign_id dùng làm platform
-            "product_id": "",
-            "quantity": 1,
-            "product_price": sale_amount,
-            "reward": payout,
-            "sales_time": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
-            "status": status_code,
-            "confirmed": confirmed,
-            "utm_source": email,
-            "created_at": firestore.SERVER_TIMESTAMP,
-            "raw": p
-        }, merge=True)
-
-        return {"success": True}
-    else:
-        # --- ACCESSTRADE WEBHOOK ---
-        transaction_id = p.get("transaction_id")
-        if not transaction_id:
-            return {"success": True, "message": "AccessTrade ping ok"}
-
-        sales_time_str = str(p.get("sales_time", ""))
-        if sales_time_str:
-            sales_time_str = sales_time_str.replace(" ", "T")
-
-        db.collection("orders").document(str(transaction_id)).set({
-            "transaction_id": str(transaction_id),
-            "order_id": str(p.get("order_id", "")),
-            "campaign_id": str(p.get("campaign_id", "")),
-            "product_id": str(p.get("product_id", "")),
-            "quantity": safe_int(p.get("quantity")),
-            "product_price": safe_float(p.get("product_price")),
-            "reward": safe_float(p.get("reward")),
-            "sales_time": sales_time_str,
-            "status": safe_int(p.get("status")),
-            "confirmed": safe_int(p.get("is_confirmed")),
-            "utm_source": str(p.get("utm_source", "")),
-            "utm_campaign": str(p.get("utm_campaign", "")),
-            "utm_medium": str(p.get("utm_medium", "")),
-            "utm_content": str(p.get("utm_content", "")),
-            "browser": str(p.get("browser", "")),
-            "platform": str(p.get("conversion_platform", "")),
-            "ip": str(p.get("ip", "")),
-            "created_at": firestore.SERVER_TIMESTAMP,
-            "raw": p
-        }, merge=True)
-
-        return {"success": True}
+    return {"success": True}
 
 def verify_admin(request: Request):
     auth_header = request.headers.get("Authorization")
