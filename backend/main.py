@@ -23,6 +23,7 @@ from urllib.parse import quote, urlparse, urlunparse
 
 # 1. Load cấu hình
 load_dotenv()
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://tho-hoantien.com").rstrip("/")
 SHOPEE_AFFILIATE_ID = os.getenv("SHOPEE_AFFILIATE_ID")
 ENABLE_SHOPEE = os.getenv("ENABLE_SHOPEE", "false").lower() == "true"
 AT_API_KEY = os.getenv("ACCESSTRADE_API_KEY")
@@ -175,6 +176,9 @@ async def global_postback(request: Request):
     return {"success": True}
 
 @app.get("/r/{code}")
+@app.get("/thohoantien-sp/{code}")
+@app.get("/thohoantien-tik/{code}")
+@app.get("/thohoantien-laz/{code}")
 def redirect_short_url(code: str):
     doc_ref = db.collection("short_urls").document(code).get()
     if not doc_ref.exists:
@@ -376,7 +380,15 @@ async def convert_link(request: Request, body: LinkRequest):
             raise HTTPException(status_code=400, detail=msg)
         data = response_data["data"]
         aff_link = data["aff_url"]
-        short_link = data["aff_short_url"]
+        
+        # Tạo short code cho link TikTok
+        short_code = generate_short_code()
+        db.collection("short_urls").document(short_code).set({
+            "long_url": aff_link,
+            "created_at": firestore.SERVER_TIMESTAMP
+        })
+        short_link = f"{FRONTEND_URL}/thohoantien-tik/{short_code}"
+        
         product_name = data["product_name"]
         product_image = data["product_image"]
         
@@ -431,8 +443,7 @@ async def convert_link(request: Request, body: LinkRequest):
             "long_url": aff_link,
             "created_at": firestore.SERVER_TIMESTAMP
         })
-        base_url = str(request.base_url).rstrip("/")
-        short_link = f"{base_url}/r/{short_code}"
+        short_link = f"{FRONTEND_URL}/thohoantien-sp/{short_code}"
 
         u_ratio, a_ratio, c_percent = get_user_ratios(body.user_email)
         cashback = round(commission * u_ratio)
@@ -472,7 +483,14 @@ async def convert_link(request: Request, body: LinkRequest):
             
         link_data = success_links[0]
         aff_link = link_data["aff_link"]
-        short_link = link_data["short_link"]
+        
+        # Tạo short code cho link Lazada
+        short_code = generate_short_code()
+        db.collection("short_urls").document(short_code).set({
+            "long_url": aff_link,
+            "created_at": firestore.SERVER_TIMESTAMP
+        })
+        short_link = f"{FRONTEND_URL}/thohoantien-laz/{short_code}"
         
         # Trích xuất tên sản phẩm từ URL
         product_name = f"Sản phẩm Lazada"
