@@ -1,7 +1,9 @@
 import os
 import requests
 import json
-from fastapi import FastAPI, HTTPException
+import random
+import string
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -14,9 +16,10 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from fastapi import Request
+from fastapi.responses import RedirectResponse
 from slowapi import _rate_limit_exceeded_handler
 from collections import Counter, defaultdict
-from urllib.parse import quote
+from urllib.parse import quote, urlparse, urlunparse
 
 # 1. Load cấu hình
 load_dotenv()
@@ -104,6 +107,18 @@ class WithdrawalUpdate(BaseModel):
 # ==========================================
 # CÁC HÀM TIỆN ÍCH (UTILS)
 # ==========================================
+def generate_short_code(length=6):
+    chars = string.ascii_letters + string.digits
+    return "".join(random.choice(chars) for _ in range(length))
+
+def clean_shopee_url(url: str) -> str:
+    try:
+        parsed = urlparse(url)
+        if "shopee.vn" in parsed.netloc:
+            return urlunparse((parsed.scheme, parsed.netloc, parsed.path, '', '', ''))
+    except Exception:
+        pass
+    return url
 
 # ==========================================
 # ENDPOINT: NHẬN WEBHOOK TỪ ACCESSTRADE
@@ -158,6 +173,15 @@ async def global_postback(request: Request):
     }, merge=True)
 
     return {"success": True}
+
+@app.get("/r/{code}")
+def redirect_short_url(code: str):
+    doc_ref = db.collection("short_urls").document(code).get()
+    if not doc_ref.exists:
+        raise HTTPException(status_code=404, detail="Đường liên kết không tồn tại hoặc đã hết hạn.")
+    data = doc_ref.to_dict()
+    long_url = data.get("long_url")
+    return RedirectResponse(url=long_url, status_code=307)
 
 def verify_admin(request: Request):
     auth_header = request.headers.get("Authorization")
@@ -375,8 +399,11 @@ async def convert_link(request: Request, body: LinkRequest):
         product_price = 0.0
         commission = 0.0
 
+        # 1. Làm sạch link sản phẩm gốc trước khi gửi đi
+        cleaned_url = clean_shopee_url(body.original_url)
+
         try:
-            data_api_url = f"https://data.addlivetag.com/product-data/product-data.php?url={quote(body.original_url)}"
+            data_api_url = f"https://data.addlivetag.com/product-data/product-data.php?url={quote(cleaned_url)}"
             response_data = requests.get(data_api_url, timeout=REQUEST_TIMEOUT)
             if response_data.status_code == 200:
                 res_json = response_data.json()
@@ -392,12 +419,20 @@ async def convert_link(request: Request, body: LinkRequest):
         if not product_image:
             product_image = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Shopee.svg/375px-Shopee.svg.png"
 
-        # 2. Tạo link an_redir trực tiếp
+        # 2. Tạo link an_redir trực tiếp bằng link đã làm sạch
         sanitized_email = body.user_email.replace("-", "_").replace("@", "_at_").replace(".", "_")
         sub_id = f"hangthocashback-{sanitized_email}"
-        encoded_url = quote(body.original_url, safe="")
+        encoded_url = quote(cleaned_url, safe="")
         aff_link = f"https://s.shopee.vn/an_redir?origin_link={encoded_url}&affiliate_id={SHOPEE_AFFILIATE_ID}&sub_id={sub_id}"
-        short_link = aff_link
+
+        # 3. Tạo link ngắn custom của hệ thống ta qua endpoint /r/{code}
+        short_code = generate_short_code()
+        db.collection("short_urls").document(short_code).set({
+            "long_url": aff_link,
+            "created_at": firestore.SERVER_TIMESTAMP
+        })
+        base_url = str(request.base_url).rstrip("/")
+        short_link = f"{base_url}/r/{short_code}"
 
         u_ratio, a_ratio, c_percent = get_user_ratios(body.user_email)
         cashback = round(commission * u_ratio)
@@ -932,6 +967,169 @@ def sync_users(request: Request):
     return {
         "success": True,
         "synced": total
+    }
+
+@app.post("/api/admin/import-shopee-report")
+@limiter.limit("5/minute")
+async def import_shopee_report(request: Request, file: UploadFile = File(...)):
+    verify_admin(request)
+    
+    import openpyxl
+    from io import BytesIO
+    
+    try:
+        contents = await file.read()
+        wb = openpyxl.load_workbook(BytesIO(contents), read_only=True)
+        sheet = wb.active
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Không thể đọc file Excel: {str(e)}")
+    
+    header_row = None
+    headers = []
+    
+    # Quét tối đa 10 dòng đầu để tìm dòng tiêu đề
+    for r_idx in range(1, 11):
+        try:
+            row_vals = [str(sheet.cell(row=r_idx, column=c_idx).value or "").strip() for c_idx in range(1, sheet.max_column + 1)]
+            keywords = ["mã đơn hàng", "order id", "đơn hàng", "sub_id", "sub id", "hoa hồng", "commission"]
+            if any(any(kw in val.lower() for kw in keywords) for val in row_vals):
+                header_row = r_idx
+                headers = row_vals
+                break
+        except Exception:
+            continue
+            
+    if not header_row:
+        raise HTTPException(status_code=400, detail="Không tìm thấy dòng tiêu đề hợp lệ trong file Excel. Vui lòng kiểm tra lại file báo cáo của Shopee.")
+        
+    col_map = {}
+    for idx, name in enumerate(headers):
+        name_lower = name.lower()
+        if "mã đơn hàng" in name_lower or "order id" in name_lower or "order_id" in name_lower:
+            col_map["order_id"] = idx
+        elif "trạng thái" in name_lower or "status" in name_lower:
+            col_map["status"] = idx
+        elif "giá trị đơn" in name_lower or "order value" in name_lower or "doanh số" in name_lower or "giá trị sản phẩm" in name_lower or "product price" in name_lower or "price" in name_lower:
+            col_map["product_price"] = idx
+        elif "hoa hồng" in name_lower or "commission" in name_lower or "reward" in name_lower:
+            col_map["reward"] = idx
+        elif "sub_id" in name_lower or "sub id" in name_lower or "sub-id" in name_lower or "utm_content" in name_lower:
+            col_map["sub_id"] = idx
+        elif "thời gian" in name_lower or "time" in name_lower or "sales_time" in name_lower:
+            col_map["sales_time"] = idx
+        elif "mã lượt click" in name_lower or "click id" in name_lower or "transaction_id" in name_lower:
+            col_map["transaction_id"] = idx
+
+    required_cols = ["order_id", "status", "reward"]
+    missing = [c for c in required_cols if c not in col_map]
+    if missing:
+        raise HTTPException(status_code=400, detail=f"File Excel thiếu các cột bắt buộc: {', '.join(missing)}")
+
+    success_count = 0
+    skipped_count = 0
+    
+    # Đọc dữ liệu từ các dòng tiếp theo
+    for r_idx in range(header_row + 1, sheet.max_row + 1):
+        try:
+            row_vals = [sheet.cell(row=r_idx, column=c_idx).value for c_idx in range(1, len(headers) + 1)]
+            if not row_vals or all(val is None for val in row_vals):
+                continue
+                
+            def get_val(col_name, default=None):
+                idx = col_map.get(col_name)
+                if idx is not None and idx < len(row_vals):
+                    return row_vals[idx]
+                return default
+
+            raw_order_id = get_val("order_id")
+            if not raw_order_id:
+                skipped_count += 1
+                continue
+                
+            order_id = str(raw_order_id).strip()
+            raw_status = get_val("status", "")
+            status_str = str(raw_status).strip().lower()
+            
+            confirmed = 0
+            status_code = 0
+            
+            if any(x in status_str for x in ["hoàn thành", "thành công", "completed", "đã hoàn thành"]):
+                confirmed = 1
+                status_code = 1
+            elif any(x in status_str for x in ["hủy", "cancelled", "không thành công", "đã hủy"]):
+                confirmed = 0
+                status_code = 2
+            else:
+                confirmed = 0
+                status_code = 0
+                
+            def parse_float(val):
+                if val is None:
+                    return 0.0
+                try:
+                    s = str(val).replace(",", "").replace("đ", "").replace("VND", "").strip()
+                    return float(s)
+                except:
+                    return 0.0
+
+            reward = parse_float(get_val("reward"))
+            product_price = parse_float(get_val("product_price"))
+            
+            raw_sub_id = get_val("sub_id", "")
+            sub_id = str(raw_sub_id).strip()
+            
+            email = ""
+            if "hangthocashback-" in sub_id:
+                sanitized_email = sub_id.split("hangthocashback-")[1]
+                if "_at_" in sanitized_email:
+                    parts = sanitized_email.split("_at_")
+                    prefix = parts[0]
+                    domain = parts[1].replace("_", ".")
+                    email = f"{prefix}@{domain}"
+            else:
+                if "@" in sub_id:
+                    email = sub_id
+
+            raw_tx_id = get_val("transaction_id")
+            if raw_tx_id:
+                transaction_id = str(raw_tx_id).strip()
+            else:
+                transaction_id = f"shopee_{order_id}"
+
+            sales_time = get_val("sales_time")
+            if sales_time:
+                if hasattr(sales_time, "strftime"):
+                    sales_time_str = sales_time.strftime("%Y-%m-%dT%H:%M:%S")
+                else:
+                    sales_time_str = str(sales_time).strip().replace(" ", "T")
+            else:
+                sales_time_str = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+
+            db.collection("orders").document(transaction_id).set({
+                "transaction_id": transaction_id,
+                "order_id": order_id,
+                "campaign_id": "Shopee",
+                "product_id": "",
+                "quantity": 1,
+                "product_price": product_price,
+                "reward": reward,
+                "sales_time": sales_time_str,
+                "status": status_code,
+                "confirmed": confirmed,
+                "utm_source": email,
+                "utm_content": sub_id,
+                "utm_medium": "shopee",
+                "created_at": firestore.SERVER_TIMESTAMP
+            }, merge=True)
+            
+            success_count += 1
+        except Exception as e:
+            print(f"Lỗi khi đọc dòng {r_idx}: {e}")
+            skipped_count += 1
+            
+    return {
+        "success": True,
+        "message": f"Đã nhập thành công {success_count} đơn hàng Shopee. Bỏ qua {skipped_count} dòng lỗi."
     }
 
 if __name__ == "__main__":
