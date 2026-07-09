@@ -23,6 +23,7 @@ from urllib.parse import quote, urlparse, urlunparse
 
 # 1. Load cấu hình
 load_dotenv()
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://tho-hoantien.com").rstrip("/")
 SHOPEE_AFFILIATE_ID = os.getenv("SHOPEE_AFFILIATE_ID")
 ENABLE_SHOPEE = os.getenv("ENABLE_SHOPEE", "false").lower() == "true"
 AT_API_KEY = os.getenv("ACCESSTRADE_API_KEY")
@@ -386,8 +387,7 @@ async def convert_link(request: Request, body: LinkRequest):
             "long_url": aff_link,
             "created_at": firestore.SERVER_TIMESTAMP
         })
-        base_url = str(request.base_url).rstrip("/")
-        short_link = f"{base_url}/thohoantien-tik/{short_code}"
+        short_link = f"{FRONTEND_URL}/thohoantien-tik/{short_code}"
         
         product_name = data["product_name"]
         product_image = data["product_image"]
@@ -443,8 +443,7 @@ async def convert_link(request: Request, body: LinkRequest):
             "long_url": aff_link,
             "created_at": firestore.SERVER_TIMESTAMP
         })
-        base_url = str(request.base_url).rstrip("/")
-        short_link = f"{base_url}/thohoantien-sp/{short_code}"
+        short_link = f"{FRONTEND_URL}/thohoantien-sp/{short_code}"
 
         u_ratio, a_ratio, c_percent = get_user_ratios(body.user_email)
         cashback = round(commission * u_ratio)
@@ -491,8 +490,7 @@ async def convert_link(request: Request, body: LinkRequest):
             "long_url": aff_link,
             "created_at": firestore.SERVER_TIMESTAMP
         })
-        base_url = str(request.base_url).rstrip("/")
-        short_link = f"{base_url}/thohoantien-laz/{short_code}"
+        short_link = f"{FRONTEND_URL}/thohoantien-laz/{short_code}"
         
         # Trích xuất tên sản phẩm từ URL
         product_name = f"Sản phẩm Lazada"
