@@ -1,5 +1,6 @@
 import requests
 from datetime import datetime
+from collections import defaultdict
 from pydantic import BaseModel
 from fastapi import APIRouter, Request, HTTPException
 from firebase_admin import firestore
@@ -332,7 +333,6 @@ def leaderboard():
         ranking[email] += reward * u_ratio
 
     result = []
-    from collections import defaultdict
     for email, total in ranking.items():
         user_doc = db.collection("users").document(email).get()
         avatar = ""
