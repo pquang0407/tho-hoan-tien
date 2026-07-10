@@ -28,6 +28,10 @@ LAZADA_CAMPAIGN_ID = os.getenv("LAZADA_CAMPAIGN_ID")
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL")
 ADMIN_EMAIL2 = os.getenv("ADMIN_EMAIL2")
 
+# Ecomobi / Passio Tokens
+ECOMOBI_TOKEN = os.getenv("ECOMOBI_TOKEN", "TcnmZAzAGPXxZjYWXfIIi")
+ECOMOBI_TOKEN_PRIVATE = os.getenv("ECOMOBI_TOKEN_PRIVATE", "RULHLFzljfyxykOJaztlo")
+
 # Ratio values
 cashback_percent = 70
 user_ratio = 0.7
