@@ -92,23 +92,48 @@ async def convert_link(request: Request, body: LinkRequest):
     }
 
     if body.platform == "tiktok":
-        product_name = "Sản phẩm TikTok Shop"
-        product_image = "https://upload.wikimedia.org/wikipedia/commons/a/a2/TikTok_logo.svg"
-        product_price = 0.0
-        commission = 0.0
-
-        # Construct Ecomobi (Passio) TikTok tracking URL
-        encoded_url = quote(body.original_url, safe="")
-        aff_link = f"https://goeco.mobi/?token={ECOMOBI_TOKEN}&url={encoded_url}&sub1={body.user_email}"
+        payload = {
+            "product_url": body.original_url,
+            "utm_source": body.user_email,
+            "utm_medium": body.platform,
+            "utm_campaign": "cashback"
+        }
+        response = requests.post(
+            "https://api.accesstrade.vn/v2/tiktokshop_product_feeds/create_link",
+            headers=headers,
+            json=payload,
+            timeout=REQUEST_TIMEOUT
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail="Không thể kết nối AccessTrade")
+        response_data = response.json()
+        if not response_data.get("status"):
+            msg = response_data.get("message", "Không thể tạo link")
+            if msg == "invalid params": msg = "Link không hợp lệ hoặc chưa hỗ trợ hoàn tiền."
+            elif "campaign" in msg.lower(): msg = "Sản phẩm chưa tham gia hoàn tiền."
+            elif "not found" in msg.lower(): msg = "Không tìm thấy sản phẩm."
+            elif "policy" in msg.lower() or "failed to be processed" in msg.lower(): 
+                msg = "Sản phẩm này không hỗ trợ hoàn tiền đâu nè (do vi phạm chính sách sản phẩm của sàn) 🐰"
+            raise HTTPException(status_code=400, detail=msg)
+        data = response_data["data"]
+        aff_link = data["aff_url"]
         
-        # Create short code
+        # Tạo short code cho link TikTok
         short_code = generate_short_code()
         db.collection("short_urls").document(short_code).set({
             "long_url": aff_link,
             "created_at": firestore.SERVER_TIMESTAMP
         })
         short_link = f"https://tiktok.{BASE_DOMAIN}/{short_code}"
-
+        
+        product_name = data["product_name"]
+        product_image = data["product_image"]
+        
+        price_info = data.get("product_price", {})
+        product_price = float(price_info.get("maximum_amount") or price_info.get("minimum_amount") or 0)
+        
+        commission_info = data.get("product_commission", {})
+        commission = float(commission_info.get("amount", 0))
         u_ratio, a_ratio, c_percent = get_user_ratios(body.user_email)
         cashback = round(commission * u_ratio)
         publisher_income = round(commission * a_ratio)
@@ -161,7 +186,48 @@ async def convert_link(request: Request, body: LinkRequest):
         publisher_income = round(commission * a_ratio)
 
     elif body.platform == "lazada":
-        # Extract product name from Lazada URL for a better preview experience
+        campaign_id = LAZADA_CAMPAIGN_ID
+        if not campaign_id:
+            raise HTTPException(
+                status_code=400, 
+                detail="Hoàn tiền Lazada đang được chuẩn bị và sẽ ra mắt sớm! Hiện tại bạn hãy trải nghiệm mua sắm qua TikTok Shop nhé 🐰"
+            )
+
+        payload = {
+            "campaign_id": campaign_id,
+            "urls": [body.original_url],
+            "utm_source": body.user_email,
+            "utm_medium": body.platform,
+            "utm_campaign": "cashback"
+        }
+        response = requests.post(
+            "https://api.accesstrade.vn/v1/product_link/create",
+            headers=headers,
+            json=payload,
+            timeout=REQUEST_TIMEOUT
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail=f"Không thể kết nối AccessTrade ({response.status_code})")
+        
+        response_data = response.json()
+        if not response_data.get("success"):
+            raise HTTPException(status_code=400, detail="Không thể tạo link liên kết cho sản phẩm này.")
+            
+        success_links = response_data.get("data", {}).get("success_link", [])
+        if not success_links:
+            raise HTTPException(status_code=400, detail="Tạo link thất bại. Vui lòng kiểm tra lại liên kết sản phẩm.")
+            
+        link_data = success_links[0]
+        aff_link = link_data["aff_link"]
+        
+        # Tạo short code và định dạng link theo subdomain của bạn
+        short_code = generate_short_code()
+        db.collection("short_urls").document(short_code).set({
+            "long_url": aff_link,
+            "created_at": firestore.SERVER_TIMESTAMP
+        })
+        short_link = f"https://lazada.{BASE_DOMAIN}/{short_code}"
+        
         product_name = f"Sản phẩm Lazada"
         if "lazada.vn/products/" in body.original_url:
             try:
@@ -172,22 +238,11 @@ async def convert_link(request: Request, body: LinkRequest):
                 pass
                 
         product_image = "https://upload.wikimedia.org/wikipedia/commons/0/06/Lazada_Logo.png"
+            
         product_price = 0.0
         commission = 0.0
-
-        # Construct Ecomobi (Passio) Lazada tracking URL
-        encoded_url = quote(body.original_url, safe="")
-        aff_link = f"https://goeco.mobi/?token={ECOMOBI_TOKEN}&url={encoded_url}&sub1={body.user_email}"
-        
-        # Create short code
-        short_code = generate_short_code()
-        db.collection("short_urls").document(short_code).set({
-            "long_url": aff_link,
-            "created_at": firestore.SERVER_TIMESTAMP
-        })
-        short_link = f"https://lazada.{BASE_DOMAIN}/{short_code}"
+        cashback = 0.0
         u_ratio, a_ratio, c_percent = get_user_ratios(body.user_email)
-        cashback = round(commission * u_ratio)
         publisher_income = round(commission * a_ratio)
     else:
         raise HTTPException(status_code=400, detail="Nền tảng không hợp lệ")
