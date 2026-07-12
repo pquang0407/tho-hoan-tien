@@ -344,7 +344,8 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
             
         # Match status (Trạng thái)
         elif any(x in name_lower for x in ["trạng thái", "trang thai", "status"]):
-            col_map["status"] = idx
+            if not any(x in name_lower for x in ["người mua", "nguoi mua", "tài khoản", "tai khoan"]):
+                col_map["status"] = idx
             
         # Match product_price (Giá trị đơn hàng)
         elif any(x in name_lower for x in ["giá trị đơn", "gia tri don", "order value", "doanh số", "doanh so", "giá trị sản phẩm", "gia tri san pham", "product price", "price", "giá bán", "gia ban"]):
