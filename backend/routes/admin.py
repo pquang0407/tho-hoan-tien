@@ -429,13 +429,41 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
             sub_id = str(raw_sub_id).strip()
             
             email = ""
+            prefix = ""
             if "hangthocashback-" in sub_id:
-                sanitized_email = sub_id.split("hangthocashback-")[1]
+                prefix = "hangthocashback-"
+            elif "hangtho-" in sub_id:
+                prefix = "hangtho-"
+                
+            if prefix:
+                sanitized_email = sub_id.split(prefix)[1]
                 if "_at_" in sanitized_email:
                     parts = sanitized_email.split("_at_")
-                    prefix = parts[0]
+                    username = parts[0]
                     domain = parts[1].replace("_", ".")
-                    email = f"{prefix}@{domain}"
+                    
+                    # 1. Direct reconstruction with domain completion
+                    if not domain.endswith("com") and not domain.endswith("vn") and not domain.endswith("net"):
+                        if domain.startswith("gmail"):
+                            domain = "gmail.com"
+                        elif domain.startswith("yahoo"):
+                            domain = "yahoo.com"
+                    temp_email = f"{username}@{domain}"
+                    
+                    # 2. Match with database for truncated emails
+                    matched_user_email = ""
+                    try:
+                        query = db.collection("users").where("email", ">=", username).where("email", "<", username + "\uf8ff").limit(5).stream()
+                        for doc in query:
+                            u_email = doc.to_dict().get("email", "")
+                            u_sanitized = u_email.replace("-", "_").replace("@", "_at_").replace(".", "_")
+                            if u_sanitized.startswith(sanitized_email) or sanitized_email.startswith(u_sanitized[:len(sanitized_email)]):
+                                matched_user_email = u_email
+                                break
+                    except Exception as ex:
+                        print(f"Firestore sub_id matching error: {ex}")
+                        
+                    email = matched_user_email if matched_user_email else temp_email
             else:
                 if "@" in sub_id:
                     email = sub_id

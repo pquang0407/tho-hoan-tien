@@ -169,7 +169,7 @@ async def convert_link(request: Request, body: LinkRequest):
             product_image = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Shopee.svg/375px-Shopee.svg.png"
 
         sanitized_email = body.user_email.replace("-", "_").replace("@", "_at_").replace(".", "_")
-        sub_id = f"hangthocashback-{sanitized_email}"
+        sub_id = f"hangtho-{sanitized_email}"
         encoded_url = quote(cleaned_url, safe="")
         aff_link = f"https://s.shopee.vn/an_redir?origin_link={encoded_url}&affiliate_id={SHOPEE_AFFILIATE_ID}&sub_id={sub_id}"
 
