@@ -6,8 +6,8 @@ def clean_shopee_url(url: str) -> str:
         parsed = urlparse(url)
         netloc = parsed.netloc.lower()
         
-        # 1. Expand short link if it is shope.ee, s.shopee.vn, short, or live
-        if any(domain in netloc for domain in ["shope.ee", "s.shopee.vn", "short", "live"]):
+        # 1. Expand short link if it is shope.ee, shp.ee, s.shopee.vn, short, or live
+        if any(domain in netloc for domain in ["shope.ee", "shp.ee", "s.shopee.vn", "short", "live"]):
             try:
                 headers = {
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
