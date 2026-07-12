@@ -270,27 +270,69 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
     
     try:
         contents = await file.read()
-        wb = openpyxl.load_workbook(BytesIO(contents), read_only=True)
-        sheet = wb.active
+        filename = file.filename.lower()
+        rows = []
+        
+        if filename.endswith(".csv"):
+            # Try to decode CSV contents
+            try:
+                decoded = contents.decode("utf-8")
+            except UnicodeDecodeError:
+                try:
+                    decoded = contents.decode("utf-16")
+                except Exception as e:
+                    raise Exception(f"Không thể giải mã file CSV: {e}")
+            
+            import csv
+            # Strip UTF-8 BOM if present
+            if decoded.startswith('\ufeff'):
+                decoded = decoded[1:]
+                
+            lines = decoded.splitlines()
+            if not lines:
+                raise Exception("File CSV trống")
+                
+            # Detect delimiter (tab, semicolon, or comma)
+            first_line = lines[0]
+            delimiter = ","
+            if "\t" in first_line:
+                delimiter = "\t"
+            elif ";" in first_line:
+                delimiter = ";"
+                
+            reader = csv.reader(lines, delimiter=delimiter)
+            rows = [row for row in reader if row]
+        else:
+            # Process as XLSX using openpyxl
+            try:
+                wb = openpyxl.load_workbook(BytesIO(contents), read_only=True, data_only=True)
+                sheet = wb.active
+                for r_idx in range(1, sheet.max_row + 1):
+                    row_vals = [sheet.cell(row=r_idx, column=c_idx).value for c_idx in range(1, sheet.max_column + 1)]
+                    rows.append(row_vals)
+            except Exception as e:
+                raise Exception(f"Không thể đọc file XLSX: {str(e)}")
+                
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Không thể đọc file Excel: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Không thể đọc file báo cáo: {str(e)}")
     
     header_row = None
     headers = []
     
-    for r_idx in range(1, 11):
+    # Scan the first 15 rows to find the headers
+    for r_idx, row in enumerate(rows[:15]):
         try:
-            row_vals = [str(sheet.cell(row=r_idx, column=c_idx).value or "").strip() for c_idx in range(1, sheet.max_column + 1)]
+            row_str_vals = [str(val or "").strip() for val in row]
             keywords = ["mã đơn hàng", "order id", "đơn hàng", "sub_id", "sub id", "hoa hồng", "commission"]
-            if any(any(kw in val.lower() for kw in keywords) for val in row_vals):
+            if any(any(kw in val.lower() for kw in keywords) for val in row_str_vals):
                 header_row = r_idx
-                headers = row_vals
+                headers = row_str_vals
                 break
         except Exception:
             continue
             
-    if not header_row:
-        raise HTTPException(status_code=400, detail="Không tìm thấy dòng tiêu đề hợp lệ trong file Excel. Vui lòng kiểm tra lại file báo cáo của Shopee.")
+    if header_row is None:
+        raise HTTPException(status_code=400, detail="Không tìm thấy dòng tiêu đề hợp lệ trong file báo cáo. Vui lòng kiểm tra lại file báo cáo của Shopee.")
         
     col_map = {}
     for idx, name in enumerate(headers):
@@ -313,15 +355,15 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
     required_cols = ["order_id", "status", "reward"]
     missing = [c for c in required_cols if c not in col_map]
     if missing:
-        raise HTTPException(status_code=400, detail=f"File Excel thiếu các cột bắt buộc: {', '.join(missing)}")
+        raise HTTPException(status_code=400, detail=f"File báo cáo thiếu các cột bắt buộc: {', '.join(missing)}")
 
     success_count = 0
     skipped_count = 0
     
-    for r_idx in range(header_row + 1, sheet.max_row + 1):
+    # Process from header_row + 1 onwards
+    for r_idx, row_vals in enumerate(rows[header_row + 1:]):
         try:
-            row_vals = [sheet.cell(row=r_idx, column=c_idx).value for c_idx in range(1, len(headers) + 1)]
-            if not row_vals or all(val is None for val in row_vals):
+            if not row_vals or all(val is None or str(val).strip() == "" for val in row_vals):
                 continue
                 
             def get_val(col_name, default=None):
