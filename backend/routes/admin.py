@@ -468,6 +468,9 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
                         email = val
                         break
 
+            # Reconstruct sub_id for utm_content logging
+            sub_id = "-".join(sub_id_vals)
+            
             raw_tx_id = get_val("transaction_id")
             if raw_tx_id:
                 transaction_id = str(raw_tx_id).strip()
