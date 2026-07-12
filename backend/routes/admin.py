@@ -334,7 +334,7 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
     if header_row is None:
         raise HTTPException(status_code=400, detail="Không tìm thấy dòng tiêu đề hợp lệ trong file báo cáo. Vui lòng kiểm tra lại file báo cáo của Shopee.")
         
-    col_map = {}
+    col_map = {"sub_ids": []}
     for idx, name in enumerate(headers):
         name_lower = name.lower().strip()
         
@@ -356,10 +356,9 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
                 col_map["reward"] = idx
                 
         # Match sub_id (sub_id1, sub_id2, sub_id)
-        elif any(x in name_lower for x in ["sub_id", "sub id", "sub-id", "subid", "utm_content", "sub_id1", "sub_id 1"]):
-            if "sub_id" not in col_map or "sub_id1" in name_lower or "sub_id 1" in name_lower:
-                col_map["sub_id"] = idx
-                
+        elif any(x in name_lower for x in ["sub_id", "sub id", "sub-id", "subid", "utm_content", "sub_id1", "sub_id2", "sub_id3", "sub_id4", "sub_id5", "sub_id 1", "sub_id 2"]):
+            col_map["sub_ids"].append(idx)
+            
         # Match sales_time (Thời gian đặt hàng)
         elif any(x in name_lower for x in ["thời gian đặt", "thoi gian dat", "sales time", "sales_time", "order time", "thời gian tạo", "thoi gian tao"]):
             col_map["sales_time"] = idx
@@ -425,19 +424,16 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
             reward = parse_float(get_val("reward"))
             product_price = parse_float(get_val("product_price"))
             
-            raw_sub_id = get_val("sub_id", "")
-            sub_id = str(raw_sub_id).strip()
+            # Extract sub_ids values and search for email containing _at_
+            sub_id_vals = []
+            for sub_idx in col_map.get("sub_ids", []):
+                if sub_idx < len(row_vals) and row_vals[sub_idx]:
+                    sub_id_vals.append(str(row_vals[sub_idx]).strip())
             
             email = ""
-            prefix = ""
-            if "hangthocashback-" in sub_id:
-                prefix = "hangthocashback-"
-            elif "hangtho-" in sub_id:
-                prefix = "hangtho-"
-                
-            if prefix:
-                sanitized_email = sub_id.split(prefix)[1]
-                if "_at_" in sanitized_email:
+            for val in sub_id_vals:
+                if "_at_" in val:
+                    sanitized_email = val
                     parts = sanitized_email.split("_at_")
                     username = parts[0]
                     domain = parts[1].replace("_", ".")
@@ -464,9 +460,13 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
                         print(f"Firestore sub_id matching error: {ex}")
                         
                     email = matched_user_email if matched_user_email else temp_email
+                    break
             else:
-                if "@" in sub_id:
-                    email = sub_id
+                # Fallback to direct email checking in any sub_id field
+                for val in sub_id_vals:
+                    if "@" in val:
+                        email = val
+                        break
 
             raw_tx_id = get_val("transaction_id")
             if raw_tx_id:
