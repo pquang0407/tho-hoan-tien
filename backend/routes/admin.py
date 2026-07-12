@@ -336,20 +336,39 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
         
     col_map = {}
     for idx, name in enumerate(headers):
-        name_lower = name.lower()
-        if "mã đơn hàng" in name_lower or "order id" in name_lower or "order_id" in name_lower:
+        name_lower = name.lower().strip()
+        
+        # Match order_id (ID đơn hàng / Mã đơn hàng)
+        if any(x in name_lower for x in ["mã đơn hàng", "ma don hang", "order id", "order_id", "id đơn hàng", "id don hang", "id đơn", "id don"]):
             col_map["order_id"] = idx
-        elif "trạng thái" in name_lower or "status" in name_lower:
+            
+        # Match status (Trạng thái)
+        elif any(x in name_lower for x in ["trạng thái", "trang thai", "status"]):
             col_map["status"] = idx
-        elif "giá trị đơn" in name_lower or "order value" in name_lower or "doanh số" in name_lower or "giá trị sản phẩm" in name_lower or "product price" in name_lower or "price" in name_lower:
+            
+        # Match product_price (Giá trị đơn hàng)
+        elif any(x in name_lower for x in ["giá trị đơn", "gia tri don", "order value", "doanh số", "doanh so", "giá trị sản phẩm", "gia tri san pham", "product price", "price", "giá bán", "gia ban"]):
             col_map["product_price"] = idx
-        elif "hoa hồng" in name_lower or "commission" in name_lower or "reward" in name_lower:
-            col_map["reward"] = idx
-        elif "sub_id" in name_lower or "sub id" in name_lower or "sub-id" in name_lower or "utm_content" in name_lower:
-            col_map["sub_id"] = idx
-        elif "thời gian" in name_lower or "time" in name_lower or "sales_time" in name_lower:
+            
+        # Match reward (Hoa hồng) - Exclude rate/type/level columns
+        elif any(x in name_lower for x in ["hoa hồng", "hoa hong", "commission", "reward"]):
+            if not any(x in name_lower for x in ["tỉ lệ", "ti le", "loại", "loai", "mức", "muc", "tỷ lệ", "ty le"]):
+                col_map["reward"] = idx
+                
+        # Match sub_id (sub_id1, sub_id2, sub_id)
+        elif any(x in name_lower for x in ["sub_id", "sub id", "sub-id", "subid", "utm_content", "sub_id1", "sub_id 1"]):
+            if "sub_id" not in col_map or "sub_id1" in name_lower or "sub_id 1" in name_lower:
+                col_map["sub_id"] = idx
+                
+        # Match sales_time (Thời gian đặt hàng)
+        elif any(x in name_lower for x in ["thời gian đặt", "thoi gian dat", "sales time", "sales_time", "order time", "thời gian tạo", "thoi gian tao"]):
             col_map["sales_time"] = idx
-        elif "mã lượt click" in name_lower or "click id" in name_lower or "transaction_id" in name_lower:
+        elif "thời gian" in name_lower or "thoi gian" in name_lower or "time" in name_lower:
+            if "sales_time" not in col_map:
+                col_map["sales_time"] = idx
+                
+        # Match transaction_id
+        elif any(x in name_lower for x in ["mã lượt click", "ma luot click", "click id", "transaction_id", "transaction id"]):
             col_map["transaction_id"] = idx
 
     required_cols = ["order_id", "status", "reward"]
