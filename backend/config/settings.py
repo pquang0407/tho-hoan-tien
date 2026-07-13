@@ -27,6 +27,7 @@ LAZADA_CAMPAIGN_ID = os.getenv("LAZADA_CAMPAIGN_ID")
 # Admin Settings
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL")
 ADMIN_EMAIL2 = os.getenv("ADMIN_EMAIL2")
+ADMIN_EMAIL3 = os.getenv("ADMIN_EMAIL3")
 
 # Ecomobi / Passio Tokens
 ECOMOBI_TOKEN = os.getenv("ECOMOBI_TOKEN", "TcnmZAzAGPXxZjYWXfIIi")

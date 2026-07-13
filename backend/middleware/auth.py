@@ -1,6 +1,6 @@
 from fastapi import Request, HTTPException
 from firebase_admin import auth as firebase_auth
-from config.settings import ADMIN_EMAIL, ADMIN_EMAIL2, user_ratio, admin_ratio, cashback_percent
+from config.settings import ADMIN_EMAIL, ADMIN_EMAIL2, ADMIN_EMAIL3, user_ratio, admin_ratio, cashback_percent
 
 def get_user_ratios(email: str):
     """
@@ -21,6 +21,15 @@ def verify_admin(request: Request):
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid token")
     email = decoded.get("email")
-    if email != ADMIN_EMAIL and email != ADMIN_EMAIL2:
+    if not email:
+        raise HTTPException(status_code=403, detail="Forbidden")
+        
+    email_clean = email.strip().lower()
+    allowed_admins = []
+    for adm in [ADMIN_EMAIL, ADMIN_EMAIL2, ADMIN_EMAIL3]:
+        if adm:
+            allowed_admins.append(adm.strip().lower())
+            
+    if email_clean not in allowed_admins:
         raise HTTPException(status_code=403, detail="Forbidden")
     return decoded
