@@ -19,10 +19,25 @@ class WithdrawalUpdate(BaseModel):
     request_id: str
     status: str
 
+# Khởi tạo bộ nhớ đệm cho báo cáo Admin
+ADMIN_REPORTS_CACHE = {
+    "data": None,
+    "last_updated": 0
+}
+
 @router.get("/api/admin/at-reports")
 @limiter.limit("30/minute")
 def admin_reports(request: Request):
     verify_admin(request)
+    
+    global ADMIN_REPORTS_CACHE
+    import time
+    now = time.time()
+    
+    # Trả về cache nếu chưa quá 10 phút (600 giây)
+    if ADMIN_REPORTS_CACHE["data"] is not None and now - ADMIN_REPORTS_CACHE["last_updated"] < 600:
+        return ADMIN_REPORTS_CACHE["data"]
+        
     orders = [
         doc.to_dict()
         for doc in db.collection("orders").stream()
@@ -84,7 +99,8 @@ def admin_reports(request: Request):
         })
         
     result.sort(key=lambda x: x["order_time"], reverse=True)
-    return {
+    
+    report_data = {
         "success": True,
         "summary": {
             "conversions": total_orders,
@@ -102,6 +118,12 @@ def admin_reports(request: Request):
         "analytics": {**analytics, "order_status": {"approved": approved_count, "pending": pending_count, "rejected": reject_count}},
         "orders": result[:30]
     }
+    
+    # Lưu kết quả vào Cache
+    ADMIN_REPORTS_CACHE["data"] = report_data
+    ADMIN_REPORTS_CACHE["last_updated"] = now
+    
+    return report_data
 
 @router.get("/api/admin/withdrawals")
 @limiter.limit("30/minute")
@@ -143,6 +165,18 @@ def update_withdrawal(request: Request, body: WithdrawalUpdate):
         "status": body.status,
         "updated_at": datetime.now()
     })
+    
+    # Xóa cache báo cáo để cập nhật lại số liệu mới
+    global ADMIN_REPORTS_CACHE
+    ADMIN_REPORTS_CACHE["last_updated"] = 0
+    
+    # Reset cả cache bảng xếp hạng bên user
+    try:
+        from routes.user import LEADERBOARD_CACHE
+        LEADERBOARD_CACHE["last_updated"] = 0
+    except:
+        pass
+        
     return {"success": True, "message": "Cập nhật trạng thái thành công"}
 
 @router.get("/api/admin/users")
@@ -151,17 +185,27 @@ def get_admin_users(request: Request, start_date: str = None, end_date: str = No
     """Admin lấy danh sách chi tiết hành vi người dùng có lọc theo ngày chuẩn xác"""
     verify_admin(request)
     
-    conversions = db.collection("conversions").stream()
-    user_data = defaultdict(lambda: {"email": "", "total_links": 0, "recent_links": []})
-    
+    query = db.collection("conversions")
     start_d = None
     end_d = None
+    
     if start_date:
-        try: start_d = datetime.strptime(start_date, "%Y-%m-%d").date()
-        except: pass
+        try:
+            start_d = datetime.strptime(start_date, "%Y-%m-%d").date()
+            start_dt = datetime.combine(start_d, datetime.min.time(), tzinfo=timezone.utc)
+            query = query.where("created_at", ">=", start_dt)
+        except Exception:
+            pass
     if end_date:
-        try: end_d = datetime.strptime(end_date, "%Y-%m-%d").date()
-        except: pass
+        try:
+            end_d = datetime.strptime(end_date, "%Y-%m-%d").date()
+            end_dt = datetime.combine(end_d + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc)
+            query = query.where("created_at", "<", end_dt)
+        except Exception:
+            pass
+
+    conversions = query.stream()
+    user_data = defaultdict(lambda: {"email": "", "total_links": 0, "recent_links": []})
 
     for doc in conversions:
         data = doc.to_dict()
@@ -509,6 +553,15 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
             print(f"Lỗi khi đọc dòng {r_idx}: {e}")
             skipped_count += 1
             
+    # Reset cache báo cáo Admin và bảng xếp hạng khi import thành công
+    global ADMIN_REPORTS_CACHE
+    ADMIN_REPORTS_CACHE["last_updated"] = 0
+    try:
+        from routes.user import LEADERBOARD_CACHE
+        LEADERBOARD_CACHE["last_updated"] = 0
+    except:
+        pass
+        
     return {
         "success": True,
         "message": f"Đã nhập thành công {success_count} đơn hàng Shopee. Bỏ qua {skipped_count} dòng lỗi."

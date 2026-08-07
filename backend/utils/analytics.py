@@ -4,28 +4,45 @@ from config.database import db
 from middleware.auth import get_user_ratios
 
 def get_firebase_summary():
-    conversions = list(db.collection("conversions").stream())
-    logs = list(db.collection("logs").stream())
-    emails = set()
-    for doc in conversions:
-        data = doc.to_dict()
-        email = data.get("user_email")
-        if email:
-            emails.add(email)
+    try:
+        generated_links = db.collection("conversions").count().get()[0][0].value
+    except Exception as e:
+        print(f"Error counting conversions: {e}")
+        generated_links = 0
+        
+    try:
+        logs_count = db.collection("logs").count().get()[0][0].value
+    except Exception as e:
+        print(f"Error counting logs: {e}")
+        logs_count = 0
+        
+    try:
+        users_count = db.collection("users").count().get()[0][0].value
+    except Exception as e:
+        print(f"Error counting users: {e}")
+        users_count = 0
+        
     return {
-        "generated_links": len(conversions),
-        "logs": len(logs),
-        "users": len(emails)
+        "generated_links": generated_links,
+        "logs": logs_count,
+        "users": users_count
     }
 
 def get_dashboard_analytics(orders):
-    conversions = [doc.to_dict() for doc in db.collection("conversions").stream()]
     today = datetime.now(timezone.utc) + timedelta(hours=7)
     today_date = today.date()
     week_ago = today_date - timedelta(days=6)
     
+    # 1. Chỉ tải dữ liệu conversions trong vòng 30 ngày qua thay vì tải toàn bộ
+    thirty_days_ago_dt = datetime.now(timezone.utc) - timedelta(days=30)
+    conversions = [
+        doc.to_dict() 
+        for doc in db.collection("conversions")
+        .where("created_at", ">=", thirty_days_ago_dt)
+        .stream()
+    ]
+    
     daily_links = defaultdict(int)
-    first_seen = {}
     product_counter = Counter()
     user_cashback = defaultdict(float)
     today_links = 0
@@ -44,10 +61,6 @@ def get_dashboard_analytics(orders):
         if doc_date >= week_ago: daily_links[str(doc_date)] += 1
         if doc_date == today_date: today_links += 1
             
-        email = item.get("user_email")
-        if email and (email not in first_seen or doc_date < first_seen[email]):
-            first_seen[email] = doc_date
-            
         product = item.get("product_name")
         platform = item.get("platform", "tiktok")
         if product: product_counter[(product, platform)] += 1
@@ -65,7 +78,14 @@ def get_dashboard_analytics(orders):
         u_ratio, _, _ = get_user_ratios(email)
         user_cashback[email] += reward * u_ratio
     
-    new_users = sum(1 for d in first_seen.values() if d >= week_ago)
+    # 2. Đếm số lượng user mới đăng ký trong 7 ngày qua từ bảng users bằng lệnh COUNT
+    try:
+        week_ago_ms = int((datetime.now(timezone.utc) - timedelta(days=7)).timestamp() * 1000)
+        new_users = db.collection("users").where("createdAt", ">=", week_ago_ms).count().get()[0][0].value
+    except Exception as e:
+        print(f"Error counting new users: {e}")
+        new_users = 0
+        
     chart = [{"date": (week_ago + timedelta(days=i)).strftime("%d/%m"), "count": daily_links.get(str(week_ago + timedelta(days=i)), 0)} for i in range(7)]
         
     return {

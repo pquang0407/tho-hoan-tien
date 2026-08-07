@@ -370,8 +370,24 @@ def get_user_history(email: str, request: Request):
     result.sort(key=lambda x: x["time"], reverse=True)
     return {"success": True, "orders": result}
 
+LEADERBOARD_CACHE = {
+    "ranking": None,
+    "last_updated": 0
+}
+
 @router.get("/api/leaderboard")
 def leaderboard():
+    import time
+    global LEADERBOARD_CACHE
+    now = time.time()
+    
+    # Nếu đã có cache và chưa quá 1 tiếng (3600 giây) thì trả về ngay lập tức
+    if LEADERBOARD_CACHE["ranking"] is not None and now - LEADERBOARD_CACHE["last_updated"] < 3600:
+        return {
+            "success": True,
+            "data": LEADERBOARD_CACHE["ranking"]
+        }
+
     orders = db.collection("orders").stream()
     ranking = defaultdict(float)
 
@@ -407,7 +423,13 @@ def leaderboard():
         })
 
     result.sort(key=lambda x: x["cashback"], reverse=True)
+    top_three = result[:3]
+    
+    # Lưu vào bộ nhớ đệm
+    LEADERBOARD_CACHE["ranking"] = top_three
+    LEADERBOARD_CACHE["last_updated"] = now
+    
     return {
         "success": True,
-        "data": result[:3]
+        "data": top_three
     }
