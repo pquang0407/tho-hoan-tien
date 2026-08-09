@@ -834,11 +834,11 @@ const Admin = ({ user }) => {
                                 style={{
                                     padding: "10px 20px",
                                     borderRadius: "8px",
-                                    border: "none",
+                                    border: "1px solid rgba(0,0,0,0.08)",
                                     cursor: "pointer",
                                     fontWeight: "bold",
-                                    backgroundColor: subTab === "members" ? "#e91e63" : "rgba(255,255,255,0.05)",
-                                    color: "#fff",
+                                    backgroundColor: subTab === "members" ? "#e91e63" : "rgba(0,0,0,0.04)",
+                                    color: subTab === "members" ? "#fff" : "#444",
                                     transition: "all 0.3s ease"
                                 }}
                             >
@@ -850,11 +850,11 @@ const Admin = ({ user }) => {
                                 style={{
                                     padding: "10px 20px",
                                     borderRadius: "8px",
-                                    border: "none",
+                                    border: "1px solid rgba(0,0,0,0.08)",
                                     cursor: "pointer",
                                     fontWeight: "bold",
-                                    backgroundColor: subTab === "logs" ? "#e91e63" : "rgba(255,255,255,0.05)",
-                                    color: "#fff",
+                                    backgroundColor: subTab === "logs" ? "#e91e63" : "rgba(0,0,0,0.04)",
+                                    color: subTab === "logs" ? "#fff" : "#444",
                                     transition: "all 0.3s ease"
                                 }}
                             >
