@@ -80,6 +80,11 @@ const Admin = ({ user }) => {
     const [searchTerm, setSearchTerm] = useState("");
     const [orderSearchTerm, setOrderSearchTerm] = useState("");
 
+    // State mới phục vụ danh sách thành viên đăng ký
+    const [registeredUsers, setRegisteredUsers] = useState([]);
+    const [userSearchTerm, setUserSearchTerm] = useState("");
+    const [subTab, setSubTab] = useState("members");
+
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
     const [filterLoading, setFilterLoading] = useState(false);
@@ -110,6 +115,7 @@ const Admin = ({ user }) => {
         fetchAccessTradeReport();
         fetchWithdrawals();
         fetchUsersList();
+        fetchRegisteredUsers();
     }, [user]);
 
     // Sorting user activity log using backend timestamp (time_val)
@@ -155,6 +161,20 @@ const Admin = ({ user }) => {
             console.error(err);
         } finally {
             setFilterLoading(false);
+        }
+    };
+
+    const fetchRegisteredUsers = async () => {
+        try {
+            const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
+            const token = await user.getIdToken();
+            const res = await fetch(`${API}/api/admin/registered-users`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (data.success) setRegisteredUsers(data.data || []);
+        } catch (err) {
+            console.error("Lỗi lấy danh sách thành viên:", err);
         }
     };
 
@@ -347,6 +367,11 @@ const Admin = ({ user }) => {
         (order.order_id || "").toLowerCase().includes(orderSearchTerm.toLowerCase())
     );
 
+    const filteredRegisteredUsers = registeredUsers.filter(u =>
+        (u.displayName || "").toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+        (u.email || "").toLowerCase().includes(userSearchTerm.toLowerCase())
+    );
+
     if (authError) {
         return (
             <div className="admin-restrict-screen">
@@ -404,7 +429,7 @@ const Admin = ({ user }) => {
                         style={{ display: "none" }}
                         onChange={handleImportShopeeExcel}
                     />
-                    <button className="btn-action-refresh" onClick={() => { fetchAccessTradeReport(); fetchWithdrawals(); fetchUsersList(); }}>
+                    <button className="btn-action-refresh" onClick={() => { fetchAccessTradeReport(); fetchWithdrawals(); fetchUsersList(); fetchRegisteredUsers(); }}>
                         <RefreshIcon />
                         <span>Làm Mới</span>
                     </button>
@@ -801,88 +826,205 @@ const Admin = ({ user }) => {
                 {/* TAB 4: USERS & LINKS */}
                 {activeTab === "users" && (
                     <div className="tab-content-wrapper fade-in">
-                        {/* Users & Log Area */}
-                        <div className="admin-card-section">
-                            <div className="card-section-header flex-direction-row">
-                                <h3 className="card-heading-title">Nhật Ký Liên Kết Đã Tạo</h3>
-                                <div className="log-filters-container">
-                                    <div className="filter-search-wrap">
-                                        <SearchIcon />
-                                        <input
-                                            type="text"
-                                            placeholder="Tìm email, sản phẩm..."
-                                            value={searchTerm}
-                                            onChange={(e) => setSearchTerm(e.target.value)}
-                                            className="log-search-input"
-                                        />
-                                    </div>
-                                    <div className="date-inputs-wrap">
-                                        <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="date-input-styled" />
-                                        <span className="date-split-text">đến</span>
-                                        <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="date-input-styled" />
-                                    </div>
-                                    <button onClick={fetchUsersList} className="btn-action-filter" disabled={filterLoading}>
-                                        {filterLoading ? "Đang tải..." : "Lọc"}
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="table-wrapper-responsive">
-                                <table className="premium-admin-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Thời gian tạo</th>
-                                            <th>Thành viên</th>
-                                            <th>Tên sản phẩm</th>
-                                            <th>Sàn giao dịch</th>
-                                            <th>Đường dẫn liên kết</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {filteredLogs.slice(0, visibleCount).map((log, i) => (
-                                            <tr key={i} className="hoverable-row">
-                                                <td><span className="time-text-muted">{log.time_str}</span></td>
-                                                <td><span className="styled-user-email">{log.email}</span></td>
-                                                <td>
-                                                    <div className="table-product-display" title={log.product_name}>
-                                                        {log.product_name}
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <span className={`badge-platform ${getPlatformClass(log.platform)}`}>
-                                                        {getPlatformName(log.platform)}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <a href={log.short_link} target="_blank" rel="noreferrer" className="btn-link-action">
-                                                        🔗 Mở link rút gọn
-                                                    </a>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                        {filteredLogs.length === 0 && (
-                                            <tr>
-                                                <td colSpan="5" className="empty-table-placeholder">
-                                                    <div className="empty-view">
-                                                        <span className="empty-icon-bunny">🐰</span>
-                                                        <p>Không có nhật ký liên kết nào</p>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            {/* Load more logic */}
-                            {filteredLogs.length > visibleCount && (
-                                <div className="table-load-more-section">
-                                    <button className="btn-load-more" onClick={() => setVisibleCount(prev => prev + 15)}>
-                                        Xem thêm nhật ký
-                                    </button>
-                                </div>
-                            )}
+                        {/* Sub-tabs toggle */}
+                        <div className="sub-tabs-container-custom" style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
+                            <button 
+                                className={`btn-sub-tab-custom ${subTab === "members" ? "active" : ""}`}
+                                onClick={() => setSubTab("members")}
+                                style={{
+                                    padding: "10px 20px",
+                                    borderRadius: "8px",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    fontWeight: "bold",
+                                    backgroundColor: subTab === "members" ? "#e91e63" : "rgba(255,255,255,0.05)",
+                                    color: "#fff",
+                                    transition: "all 0.3s ease"
+                                }}
+                            >
+                                👥 Danh Sách Thành Viên ({filteredRegisteredUsers.length})
+                            </button>
+                            <button 
+                                className={`btn-sub-tab-custom ${subTab === "logs" ? "active" : ""}`}
+                                onClick={() => setSubTab("logs")}
+                                style={{
+                                    padding: "10px 20px",
+                                    borderRadius: "8px",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    fontWeight: "bold",
+                                    backgroundColor: subTab === "logs" ? "#e91e63" : "rgba(255,255,255,0.05)",
+                                    color: "#fff",
+                                    transition: "all 0.3s ease"
+                                }}
+                            >
+                                🔗 Nhật Ký Liên Kết ({filteredLogs.length})
+                            </button>
                         </div>
+
+                        {subTab === "members" ? (
+                            <div className="admin-card-section">
+                                <div className="card-section-header flex-direction-row">
+                                    <h3 className="card-heading-title">Danh Sách Thành Viên Đăng Ký</h3>
+                                    <div className="log-filters-container">
+                                        <div className="filter-search-wrap">
+                                            <SearchIcon />
+                                            <input
+                                                type="text"
+                                                placeholder="Tìm tên hoặc email thành viên..."
+                                                value={userSearchTerm}
+                                                onChange={(e) => setUserSearchTerm(e.target.value)}
+                                                className="log-search-input"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="table-wrapper-responsive">
+                                    <table className="premium-admin-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Ảnh đại diện</th>
+                                                <th>Tên hiển thị</th>
+                                                <th>Email</th>
+                                                <th>Ngày đăng ký</th>
+                                                <th>Hình thức đăng nhập</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {filteredRegisteredUsers.map((u, i) => (
+                                                <tr key={i} className="hoverable-row">
+                                                    <td>
+                                                        {u.photoURL ? (
+                                                            <img 
+                                                                src={u.photoURL} 
+                                                                alt={u.displayName} 
+                                                                style={{ width: "35px", height: "35px", borderRadius: "50%", objectFit: "cover" }} 
+                                                            />
+                                                        ) : (
+                                                            <div className="avatar-letter-circle" style={{ width: "35px", height: "35px", fontSize: "14px" }}>
+                                                                {u.email ? u.email[0].toUpperCase() : "?"}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td><span className="font-weight-bold" style={{ color: "#fff" }}>{u.displayName || "N/A"}</span></td>
+                                                    <td><span className="styled-user-email">{u.email}</span></td>
+                                                    <td><span className="time-text-muted">{u.createdAt || "--"}</span></td>
+                                                    <td>
+                                                        <span 
+                                                            className={`status-badge`} 
+                                                            style={{ 
+                                                                backgroundColor: u.provider === "google.com" ? "rgba(219, 68, 85, 0.15)" : "rgba(255, 255, 255, 0.05)",
+                                                                color: u.provider === "google.com" ? "#ff5722" : "#ccc",
+                                                                border: "1px solid rgba(255,255,255,0.05)",
+                                                                padding: "4px 8px",
+                                                                borderRadius: "6px",
+                                                                fontSize: "12px",
+                                                                display: "inline-block"
+                                                            }}
+                                                        >
+                                                            {u.provider === "google.com" ? "Google" : u.provider || "Email/Password"}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {filteredRegisteredUsers.length === 0 && (
+                                                <tr>
+                                                    <td colSpan="5" className="empty-table-placeholder">
+                                                        <div className="empty-view">
+                                                            <span className="empty-icon-bunny">🐰</span>
+                                                            <p>Không tìm thấy thành viên nào</p>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="admin-card-section">
+                                <div className="card-section-header flex-direction-row">
+                                    <h3 className="card-heading-title">Nhật Ký Liên Kết Đã Tạo</h3>
+                                    <div className="log-filters-container">
+                                        <div className="filter-search-wrap">
+                                            <SearchIcon />
+                                            <input
+                                                type="text"
+                                                placeholder="Tìm email, sản phẩm..."
+                                                value={searchTerm}
+                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                                className="log-search-input"
+                                            />
+                                        </div>
+                                        <div className="date-inputs-wrap">
+                                            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="date-input-styled" />
+                                            <span className="date-split-text">đến</span>
+                                            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="date-input-styled" />
+                                        </div>
+                                        <button onClick={fetchUsersList} className="btn-action-filter" disabled={filterLoading}>
+                                            {filterLoading ? "Đang tải..." : "Lọc"}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="table-wrapper-responsive">
+                                    <table className="premium-admin-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Thời gian tạo</th>
+                                                <th>Thành viên</th>
+                                                <th>Tên sản phẩm</th>
+                                                <th>Sàn giao dịch</th>
+                                                <th>Đường dẫn liên kết</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {filteredLogs.slice(0, visibleCount).map((log, i) => (
+                                                <tr key={i} className="hoverable-row">
+                                                    <td><span className="time-text-muted">{log.time_str}</span></td>
+                                                    <td><span className="styled-user-email">{log.email}</span></td>
+                                                    <td>
+                                                        <div className="table-product-display" title={log.product_name}>
+                                                            {log.product_name}
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <span className={`badge-platform ${getPlatformClass(log.platform)}`}>
+                                                            {getPlatformName(log.platform)}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <a href={log.short_link} target="_blank" rel="noreferrer" className="btn-link-action">
+                                                            🔗 Mở link rút gọn
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {filteredLogs.length === 0 && (
+                                                <tr>
+                                                    <td colSpan="5" className="empty-table-placeholder">
+                                                        <div className="empty-view">
+                                                            <span className="empty-icon-bunny">🐰</span>
+                                                            <p>Không có nhật ký liên kết nào</p>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {/* Load more logic */}
+                                {filteredLogs.length > visibleCount && (
+                                    <div className="table-load-more-section">
+                                        <button className="btn-load-more" onClick={() => setVisibleCount(prev => prev + 15)}>
+                                            Xem thêm nhật ký
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

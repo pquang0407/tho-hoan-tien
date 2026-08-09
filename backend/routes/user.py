@@ -289,8 +289,8 @@ async def create_withdrawal(request: Request, body: WithdrawalRequest):
     if body.amount > wallet["balance"] - pending_amount:
         raise HTTPException(status_code=400, detail="Số dư khả dụng không đủ.")
         
-    if body.amount < 100000:
-        raise HTTPException(status_code=400, detail="Rút tối thiểu 100.000đ")
+    if body.amount < 30000:
+        raise HTTPException(status_code=400, detail="Rút tối thiểu 30.000đ")
         
     db.collection("withdrawals").add({
         "user_email": body.user_email,

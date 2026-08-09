@@ -61,7 +61,7 @@ const Wallet = ({ user }) => {
     const handleWithdraw = async () => {
         const val = parseFloat(amount);
         if (!amount || isNaN(val)) return alert("Vui lòng nhập số tiền hợp lệ!");
-        if (val < 100000) return alert("Số tiền rút tối thiểu là 100.000đ");
+        if (val < 30000) return alert("Số tiền rút tối thiểu là 30.000đ");
         if (val > balance) return alert("Số dư khả dụng không đủ. Vui lòng đợi các đơn hàng chờ duyệt được hoàn tất.");
         if (!bankName || !accountNumber || !accountHolder) return alert("Vui lòng điền đầy đủ thông tin ngân hàng");
 
@@ -96,7 +96,7 @@ const Wallet = ({ user }) => {
         }
     };
 
-    const progress = Math.min((balance / 100000) * 100, 100);
+    const progress = Math.min((balance / 30000) * 100, 100);
 
     return (
         <div className="wallet-page fade-in">
@@ -119,8 +119,8 @@ const Wallet = ({ user }) => {
                         <div className="progress-bar-fill-new" style={{ width: `${progress}%` }}></div>
                     </div>
                     <p className="stat-card-desc text-white-opacity-soft">
-                        {balance < 100000 
-                            ? `Cần thêm ${(100000 - balance).toLocaleString("vi-VN")}đ nữa để rút tiền (Tối thiểu 100.000đ)` 
+                        {balance < 30000 
+                            ? `Cần thêm ${(30000 - balance).toLocaleString("vi-VN")}đ nữa để rút tiền (Tối thiểu 30.000đ)` 
                             : "Đã đạt hạn mức tối thiểu! Bạn có thể rút tiền ngay."}
                     </p>
                 </div>
@@ -142,7 +142,7 @@ const Wallet = ({ user }) => {
                             <label className="input-label-styled">Số tiền cần rút</label>
                             <input 
                                 type="number" 
-                                placeholder="Số tiền (VND, tối thiểu 100.000đ)" 
+                                placeholder="Số tiền (VND, tối thiểu 30.000đ)" 
                                 value={amount} 
                                 onChange={(e) => setAmount(e.target.value)} 
                                 className="styled-input-field"

@@ -267,6 +267,36 @@ def get_admin_users(request: Request, start_date: str = None, end_date: str = No
     result.sort(key=lambda x: x["total_links"], reverse=True)
     return {"success": True, "data": result}
 
+@router.get("/api/admin/registered-users")
+@limiter.limit("30/minute")
+def get_registered_users(request: Request):
+    """Admin lấy toàn bộ danh sách thành viên đăng ký từ bảng users"""
+    verify_admin(request)
+    
+    docs = db.collection("users").stream()
+    result = []
+    for doc in docs:
+        data = doc.to_dict()
+        created_time = ""
+        created_at_ms = data.get("createdAt")
+        if created_at_ms:
+            try:
+                # Đổi milliseconds sang readable string
+                created_time = datetime.fromtimestamp(created_at_ms / 1000, tz=timezone.utc)
+                # Đổi sang giờ VN (+7)
+                created_time = (created_time + timedelta(hours=7)).strftime("%d/%m/%Y %H:%M")
+            except:
+                created_time = str(created_at_ms)
+                
+        result.append({
+            "email": data.get("email", ""),
+            "displayName": data.get("displayName", ""),
+            "photoURL": data.get("photoURL", ""),
+            "createdAt": created_time,
+            "provider": data.get("provider", "")
+        })
+    return {"success": True, "data": result}
+
 @router.post("/api/admin/sync-users")
 @limiter.limit("5/minute")
 def sync_users(request: Request):
