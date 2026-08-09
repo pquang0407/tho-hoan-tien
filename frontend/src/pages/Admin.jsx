@@ -907,23 +907,24 @@ const Admin = ({ user }) => {
                                                             </div>
                                                         )}
                                                     </td>
-                                                    <td><span className="font-weight-bold" style={{ color: "#fff" }}>{u.displayName || "N/A"}</span></td>
+                                                    <td><span className="font-weight-bold" style={{ color: "#2c3e50", fontSize: "14px" }}>{u.displayName || "N/A"}</span></td>
                                                     <td><span className="styled-user-email">{u.email}</span></td>
                                                     <td><span className="time-text-muted">{u.createdAt || "--"}</span></td>
                                                     <td>
                                                         <span 
                                                             className={`status-badge`} 
                                                             style={{ 
-                                                                backgroundColor: u.provider === "google.com" ? "rgba(219, 68, 85, 0.15)" : "rgba(255, 255, 255, 0.05)",
-                                                                color: u.provider === "google.com" ? "#ff5722" : "#ccc",
-                                                                border: "1px solid rgba(255,255,255,0.05)",
-                                                                padding: "4px 8px",
+                                                                backgroundColor: u.provider === "google.com" ? "#ffebee" : "#f5f5f5",
+                                                                color: u.provider === "google.com" ? "#c62828" : "#424242",
+                                                                border: "1px solid rgba(0,0,0,0.06)",
+                                                                padding: "4px 10px",
                                                                 borderRadius: "6px",
                                                                 fontSize: "12px",
+                                                                fontWeight: "bold",
                                                                 display: "inline-block"
                                                             }}
                                                         >
-                                                            {u.provider === "google.com" ? "Google" : u.provider || "Email/Password"}
+                                                            {u.provider === "google.com" ? "Google" : u.provider || "Email"}
                                                         </span>
                                                     </td>
                                                 </tr>
