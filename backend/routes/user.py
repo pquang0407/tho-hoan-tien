@@ -280,8 +280,29 @@ async def convert_link(request: Request, body: LinkRequest):
             
         product_price = pasted_price
         
-        # Tỷ lệ hoa hồng trung bình của Lazada là 4%
-        estimated_commission_rate = 0.04
+        # Phân tích ngành hàng cơ bản dựa trên từ khóa trong URL hoặc Tiêu đề để áp hoa hồng chuẩn của AccessTrade
+        normalized_title = product_name.lower()
+        normalized_url = cleaned_url.lower()
+        
+        # Danh mục 0% (Điện thoại, máy tính bảng, Apple, sữa em bé < 2 tuổi, bia, thẻ cào)
+        zero_keywords = [
+            "dien-thoai", "phone", "tablet", "may-tinh-bang", "ipad", "iphone", "apple",
+            "macbook", "sim-", "card-", "the-cao", "sua-bot", "sua-formula", "bia-", "heineken",
+            "tiger", "sapporo", "budweiser"
+        ]
+        # Danh mục 2.2% (Tạp hóa, bách hóa)
+        grocery_keywords = [
+            "tap-hoa", "grocery", "bach-hoa", "gia-vi", "an-lien", "mi-goi", "nuoc-tuong",
+            "dau-an", "gao-", "sieu-thi"
+        ]
+        
+        if any(kw in normalized_url or kw in normalized_title for kw in zero_keywords):
+            estimated_commission_rate = 0.0
+        elif any(kw in normalized_url or kw in normalized_title for kw in grocery_keywords):
+            estimated_commission_rate = 0.022
+        else:
+            estimated_commission_rate = 0.07 # 7.00% toàn bộ các ngành hàng khác
+            
         commission = product_price * estimated_commission_rate
         
         u_ratio, a_ratio, c_percent = get_user_ratios(body.user_email)
