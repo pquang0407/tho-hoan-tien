@@ -214,11 +214,11 @@ const Dashboard = ({ user }) => {
                                 <span className="estimate-label">Hoa hồng tích lũy ước tính ⓘ</span>
                                 {activeTab === "lazada" && result.product.price === 0 ? (
                                     <>
-                                        <div className="estimate-amount highlight-gradient-text" style={{ fontSize: "1.1rem" }}>
-                                            ≈ Chờ đối soát (Khoảng 3% - 10%) ⏳
+                                        <div className="estimate-amount highlight-gradient-text" style={{ fontSize: "1.2rem" }}>
+                                            ≈ 4.9% giá trị đơn hàng 🎁
                                         </div>
                                         <div className="original-price" style={{ color: "#e67e22", marginTop: "4px", fontSize: "0.85rem" }}>
-                                            💡 Mẹo: Copy kèm tên và giá từ app Lazada rồi dán vào đây để xem số tiền ước tính!
+                                            💡 Mẹo: Copy kèm tên và giá từ app Lazada dán vào đây để xem số tiền ước tính cụ thể!
                                         </div>
                                     </>
                                 ) : (
