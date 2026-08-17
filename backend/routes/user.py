@@ -201,11 +201,6 @@ async def convert_link(request: Request, body: LinkRequest):
         except Exception as e:
             print(f"Shopee Product Data API error: {e}")
 
-        if product_price <= 0:
-            product_price = 150000.0  # Giá bán mặc định tạm tính là 150.000đ khi dán link thô/lỗi
-            commission = product_price * 0.06  # 6% hoa hồng trung bình Shopee
-            is_estimated_price = True
-
         if not product_image:
             product_image = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Shopee.svg/375px-Shopee.svg.png"
 
