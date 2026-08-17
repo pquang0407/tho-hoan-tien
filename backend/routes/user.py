@@ -186,46 +186,10 @@ async def convert_link(request: Request, body: LinkRequest):
         publisher_income = round(commission * a_ratio)
 
     elif body.platform == "lazada":
-        if not LAZADA_CAMPAIGN_ID:
-            raise HTTPException(
-                status_code=400,
-                detail="Chưa cấu hình LAZADA_CAMPAIGN_ID trên máy chủ."
-            )
-            
-        # 1. Giải mã link rút gọn Lazada nếu có (tránh chặn captcha)
-        cleaned_url = clean_lazada_url(body.original_url)
-        encoded_url = quote(cleaned_url, safe='')
-        
-        # 2. Ghép link tiếp thị liên kết trực tiếp bằng tài khoản Lazada của sếp
-        sanitized_email = body.user_email.replace("-", "_").replace("@", "_at_").replace(".", "_")
-        sub_id = f"hangtho-{sanitized_email}"
-        aff_link = f"https://c.lazada.vn/t/c.{LAZADA_CAMPAIGN_ID}?url={encoded_url}&sub_id1={sub_id}"
-        
-        # 3. Tạo short code của hệ thống
-        short_code = generate_short_code()
-        db.collection("short_urls").document(short_code).set({
-            "long_url": aff_link,
-            "created_at": firestore.SERVER_TIMESTAMP
-        })
-        short_link = f"https://lazada.{BASE_DOMAIN}/{short_code}"
-        
-        # 4. Trích xuất tên sản phẩm từ URL đã làm sạch (tránh hiển thị pdp ID xấu)
-        product_name = f"Sản phẩm Lazada"
-        if "lazada.vn/products/" in cleaned_url:
-            try:
-                parts = cleaned_url.split("lazada.vn/products/")[1].split("?")[0].split(".html")[0].split("-")
-                if len(parts) > 0 and parts[0] != "pdp":
-                    product_name = " ".join(parts[:-1])
-            except Exception:
-                pass
-                
-        product_image = "https://upload.wikimedia.org/wikipedia/commons/0/06/Lazada_Logo.png"
-            
-        product_price = 0.0
-        commission = 0.0
-        cashback = 0.0
-        u_ratio, a_ratio, c_percent = get_user_ratios(body.user_email)
-        publisher_income = round(commission * a_ratio)
+        raise HTTPException(
+            status_code=400,
+            detail="Hoàn tiền Lazada đang được nâng cấp bảo mật hệ thống và tạm đóng để chờ duyệt API. Bạn hãy trải nghiệm mua sắm hoàn tiền qua Shopee hoặc TikTok Shop nhé! 🐰"
+        )
     else:
         raise HTTPException(status_code=400, detail="Nền tảng không hợp lệ")
 
