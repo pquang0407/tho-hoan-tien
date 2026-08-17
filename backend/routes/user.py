@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from fastapi import APIRouter, Request, HTTPException
 from firebase_admin import firestore
 from urllib.parse import quote
+import re
 
 from config.database import db
 from config.limiter import limiter
@@ -91,9 +92,42 @@ async def convert_link(request: Request, body: LinkRequest):
         "accept": "application/json"
     }
 
+    # Trích xuất URL thực tế, tên sản phẩm và giá bán từ văn bản dán thô
+    raw_text = body.original_url
+    url_match = re.search(r'(https?://[^\s|]+)', raw_text)
+    original_url = url_match.group(1) if url_match else raw_text.strip()
+    
+    # Tìm giá bán nếu có (đặc biệt hữu ích khi người dùng copy cả tin từ app Lazada)
+    pasted_price = 0.0
+    price_match = re.search(r'([\d.,]+)\s*(?:đ|₫|VND|vnd|d)', raw_text)
+    if price_match:
+        price_str = price_match.group(1).replace(".", "").replace(",", "")
+        try:
+            pasted_price = float(price_str)
+        except ValueError:
+            pass
+
+    # Tìm tiêu đề sản phẩm nếu có
+    pasted_title = ""
+    clean_text = raw_text.replace(original_url, "").strip()
+    clean_text = re.sub(r'\|\s*$', '', clean_text).strip()
+    clean_text = re.sub(r'Mua ngay trên Lazada.*$', '', clean_text, flags=re.IGNORECASE).strip()
+    if clean_text:
+        if price_match:
+            title_part = raw_text.split(price_match.group(0))[0].strip()
+            title_part = re.sub(r'^\[.*?\]\s*', '', title_part)
+            title_part = re.sub(r'[\s|,-]+$', '', title_part).strip()
+            if title_part:
+                pasted_title = title_part
+        else:
+            title_part = re.sub(r'^\[.*?\]\s*', '', clean_text)
+            title_part = re.sub(r'[\s|,-]+$', '', title_part).strip()
+            if title_part:
+                pasted_title = title_part
+
     if body.platform == "tiktok":
         payload = {
-            "product_url": body.original_url,
+            "product_url": original_url,
             "utm_source": body.user_email,
             "utm_medium": body.platform,
             "utm_campaign": "cashback"
@@ -149,7 +183,7 @@ async def convert_link(request: Request, body: LinkRequest):
         product_price = 0.0
         commission = 0.0
 
-        cleaned_url = clean_shopee_url(body.original_url)
+        cleaned_url = clean_shopee_url(original_url)
 
         try:
             data_api_url = f"https://data.addlivetag.com/product-data/product-data.php?url={quote(cleaned_url)}"
@@ -194,7 +228,7 @@ async def convert_link(request: Request, body: LinkRequest):
             )
 
         # 1. Giải mã link rút gọn Lazada nếu có (tránh chặn captcha)
-        cleaned_url = clean_lazada_url(body.original_url)
+        cleaned_url = clean_lazada_url(original_url)
 
         # 2. Gọi API AccessTrade để tạo link tiếp thị liên kết
         payload = {
@@ -232,9 +266,9 @@ async def convert_link(request: Request, body: LinkRequest):
         })
         short_link = f"https://lazada.{BASE_DOMAIN}/{short_code}"
         
-        # 4. Trích xuất tên sản phẩm từ URL đã làm sạch (tránh hiển thị pdp ID xấu)
-        product_name = f"Sản phẩm Lazada"
-        if "lazada.vn/products/" in cleaned_url:
+        # 4. Thiết lập tên sản phẩm và giá bán từ trích xuất văn bản thô
+        product_name = pasted_title if pasted_title else "Sản phẩm Lazada"
+        if not pasted_title and "lazada.vn/products/" in cleaned_url:
             try:
                 parts = cleaned_url.split("lazada.vn/products/")[1].split("?")[0].split(".html")[0].split("-")
                 if len(parts) > 0 and parts[0] != "pdp":
@@ -244,10 +278,14 @@ async def convert_link(request: Request, body: LinkRequest):
                 
         product_image = "https://upload.wikimedia.org/wikipedia/commons/0/06/Lazada_Logo.png"
             
-        product_price = 0.0
-        commission = 0.0
-        cashback = 0.0
+        product_price = pasted_price
+        
+        # Tỷ lệ hoa hồng trung bình của Lazada là 4%
+        estimated_commission_rate = 0.04
+        commission = product_price * estimated_commission_rate
+        
         u_ratio, a_ratio, c_percent = get_user_ratios(body.user_email)
+        cashback = round(commission * u_ratio)
         publisher_income = round(commission * a_ratio)
     else:
         raise HTTPException(status_code=400, detail="Nền tảng không hợp lệ")

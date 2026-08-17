@@ -212,12 +212,25 @@ const Dashboard = ({ user }) => {
                         <div className="cashback-estimate">
                             <div className="estimate-left">
                                 <span className="estimate-label">Hoa hồng tích lũy ước tính ⓘ</span>
-                                <div className="estimate-amount highlight-gradient-text">
-                                    ≈ {Number(result.commission.cashback || 0).toLocaleString("vi-VN")} đ
-                                </div>
-                                <div className="original-price">
-                                    Giá bán trên sàn: {Number(result.product.price || 0).toLocaleString("vi-VN")}đ
-                                </div>
+                                {activeTab === "lazada" && result.product.price === 0 ? (
+                                    <>
+                                        <div className="estimate-amount highlight-gradient-text" style={{ fontSize: "1.1rem" }}>
+                                            ≈ Chờ đối soát (Khoảng 3% - 10%) ⏳
+                                        </div>
+                                        <div className="original-price" style={{ color: "#e67e22", marginTop: "4px", fontSize: "0.85rem" }}>
+                                            💡 Mẹo: Copy kèm tên và giá từ app Lazada rồi dán vào đây để xem số tiền ước tính!
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="estimate-amount highlight-gradient-text">
+                                            ≈ {Number(result.commission.cashback || 0).toLocaleString("vi-VN")} đ
+                                        </div>
+                                        <div className="original-price">
+                                            Giá bán trên sàn: {Number(result.product.price || 0).toLocaleString("vi-VN")}đ
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </div>
 
