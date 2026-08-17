@@ -186,10 +186,69 @@ async def convert_link(request: Request, body: LinkRequest):
         publisher_income = round(commission * a_ratio)
 
     elif body.platform == "lazada":
-        raise HTTPException(
-            status_code=400,
-            detail="Hoàn tiền Lazada đang được nâng cấp bảo mật hệ thống và tạm đóng để chờ duyệt API. Bạn hãy trải nghiệm mua sắm hoàn tiền qua Shopee hoặc TikTok Shop nhé! 🐰"
+        campaign_id = LAZADA_CAMPAIGN_ID
+        if not campaign_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Chưa cấu hình LAZADA_CAMPAIGN_ID trên máy chủ."
+            )
+
+        # 1. Giải mã link rút gọn Lazada nếu có (tránh chặn captcha)
+        cleaned_url = clean_lazada_url(body.original_url)
+
+        # 2. Gọi API AccessTrade để tạo link tiếp thị liên kết
+        payload = {
+            "campaign_id": campaign_id,
+            "urls": [cleaned_url],
+            "utm_source": body.user_email,
+            "utm_medium": body.platform,
+            "utm_campaign": "cashback"
+        }
+        response = requests.post(
+            "https://api.accesstrade.vn/v1/product_link/create",
+            headers=headers,
+            json=payload,
+            timeout=REQUEST_TIMEOUT
         )
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail=f"Không thể kết nối AccessTrade ({response.status_code})")
+        
+        response_data = response.json()
+        if not response_data.get("success"):
+            raise HTTPException(status_code=400, detail="Không thể tạo link liên kết cho sản phẩm này.")
+            
+        success_links = response_data.get("data", {}).get("success_link", [])
+        if not success_links:
+            raise HTTPException(status_code=400, detail="Tạo link thất bại. Vui lòng kiểm tra lại liên kết sản phẩm.")
+            
+        link_data = success_links[0]
+        aff_link = link_data["aff_link"]
+        
+        # 3. Tạo short code và định dạng link theo subdomain của bạn
+        short_code = generate_short_code()
+        db.collection("short_urls").document(short_code).set({
+            "long_url": aff_link,
+            "created_at": firestore.SERVER_TIMESTAMP
+        })
+        short_link = f"https://lazada.{BASE_DOMAIN}/{short_code}"
+        
+        # 4. Trích xuất tên sản phẩm từ URL đã làm sạch (tránh hiển thị pdp ID xấu)
+        product_name = f"Sản phẩm Lazada"
+        if "lazada.vn/products/" in cleaned_url:
+            try:
+                parts = cleaned_url.split("lazada.vn/products/")[1].split("?")[0].split(".html")[0].split("-")
+                if len(parts) > 0 and parts[0] != "pdp":
+                    product_name = " ".join(parts[:-1])
+            except Exception:
+                pass
+                
+        product_image = "https://upload.wikimedia.org/wikipedia/commons/0/06/Lazada_Logo.png"
+            
+        product_price = 0.0
+        commission = 0.0
+        cashback = 0.0
+        u_ratio, a_ratio, c_percent = get_user_ratios(body.user_email)
+        publisher_income = round(commission * a_ratio)
     else:
         raise HTTPException(status_code=400, detail="Nền tảng không hợp lệ")
 
