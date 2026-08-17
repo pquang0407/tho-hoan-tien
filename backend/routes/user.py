@@ -209,12 +209,12 @@ async def convert_link(request: Request, body: LinkRequest):
         })
         short_link = f"https://lazada.{BASE_DOMAIN}/{short_code}"
         
-        # 4. Trích xuất tên sản phẩm từ URL đã làm sạch
+        # 4. Trích xuất tên sản phẩm từ URL đã làm sạch (tránh hiển thị pdp ID xấu)
         product_name = f"Sản phẩm Lazada"
         if "lazada.vn/products/" in cleaned_url:
             try:
                 parts = cleaned_url.split("lazada.vn/products/")[1].split("?")[0].split(".html")[0].split("-")
-                if len(parts) > 0:
+                if len(parts) > 0 and parts[0] != "pdp":
                     product_name = " ".join(parts[:-1])
             except Exception:
                 pass
