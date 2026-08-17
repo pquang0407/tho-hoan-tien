@@ -278,7 +278,7 @@ async def convert_link(request: Request, body: LinkRequest):
             except Exception:
                 pass
                 
-        product_image = "https://img.lazcdn.com/g/tps/imgextra/i4/O1CN0157n84S1PqYvW7Wwlh_!!6000000001890-2-tps-105-48.png"
+        product_image = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Lazada_Logo.svg/512px-Lazada_Logo.svg.png"
             
         product_price = pasted_price
         if product_price <= 0:

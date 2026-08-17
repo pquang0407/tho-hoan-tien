@@ -202,6 +202,7 @@ const Dashboard = ({ user }) => {
                                 src={result.product.image}
                                 alt={result.product.name}
                                 className="product-img"
+                                referrerPolicy="no-referrer"
                             />
                             <div className="product-details">
                                 <h4 className="product-details-title">{result.product.name}</h4>
