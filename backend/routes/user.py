@@ -92,6 +92,8 @@ async def convert_link(request: Request, body: LinkRequest):
         "accept": "application/json"
     }
 
+    is_estimated_price = False
+
     # Trích xuất URL thực tế, tên sản phẩm và giá bán từ văn bản dán thô
     raw_text = body.original_url
     url_match = re.search(r'(https?://[^\s|]+)', raw_text)
@@ -199,6 +201,11 @@ async def convert_link(request: Request, body: LinkRequest):
         except Exception as e:
             print(f"Shopee Product Data API error: {e}")
 
+        if product_price <= 0:
+            product_price = 150000.0  # Giá bán mặc định tạm tính là 150.000đ khi dán link thô/lỗi
+            commission = product_price * 0.06  # 6% hoa hồng trung bình Shopee
+            is_estimated_price = True
+
         if not product_image:
             product_image = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Shopee.svg/375px-Shopee.svg.png"
 
@@ -279,6 +286,9 @@ async def convert_link(request: Request, body: LinkRequest):
         product_image = "https://img.lazcdn.com/g/tps/imgextra/i4/O1CN0157n84S1PqYvW7Wwlh_!!6000000001890-2-tps-105-48.png"
             
         product_price = pasted_price
+        if product_price <= 0:
+            product_price = 150000.0  # Giá bán mặc định tạm tính là 150.000đ khi dán link thô/laptop
+            is_estimated_price = True
         
         # Phân tích ngành hàng cơ bản dựa trên từ khóa trong URL hoặc Tiêu đề để áp hoa hồng chuẩn của AccessTrade
         normalized_title = product_name.lower()
@@ -333,7 +343,7 @@ async def convert_link(request: Request, body: LinkRequest):
     
     return {
         "success": True,
-        "product": {"name": product_name, "image": product_image, "price": product_price},
+        "product": {"name": product_name, "image": product_image, "price": product_price, "is_estimated_price": is_estimated_price},
         "commission": {"amount": commission, "cashback_percent": c_percent, "cashback": cashback, "publisher_income": publisher_income},
         "links": {"short": short_link, "affiliate": aff_link}
     }

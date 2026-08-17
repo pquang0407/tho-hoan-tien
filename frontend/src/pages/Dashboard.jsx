@@ -212,13 +212,13 @@ const Dashboard = ({ user }) => {
                         <div className="cashback-estimate">
                             <div className="estimate-left">
                                 <span className="estimate-label">Hoa hồng tích lũy ước tính ⓘ</span>
-                                {activeTab === "lazada" && result.product.price === 0 ? (
+                                {result.product.is_estimated_price ? (
                                     <>
-                                        <div className="estimate-amount highlight-gradient-text" style={{ fontSize: "1.2rem" }}>
-                                            ≈ 4.9% giá trị đơn hàng 🎁
+                                        <div className="estimate-amount highlight-gradient-text">
+                                            ≈ {Number(result.commission.cashback || 0).toLocaleString("vi-VN")} đ
                                         </div>
                                         <div className="original-price" style={{ color: "#e67e22", marginTop: "4px", fontSize: "0.85rem" }}>
-                                            💡 Mẹo: Copy kèm tên và giá từ app Lazada dán vào đây để xem số tiền ước tính cụ thể!
+                                            ⚠️ Tạm tính (Đơn hàng 150k). Hoa hồng thực tế tính trên đơn hàng thực mua.
                                         </div>
                                     </>
                                 ) : (
