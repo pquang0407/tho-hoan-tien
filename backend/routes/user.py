@@ -28,9 +28,9 @@ from utils.shortener import generate_short_code
 from utils.url_cleaner import clean_shopee_url, clean_lazada_url
 
 # Thông tin cấu hình Lazada Affiliate API chính thức
-LAZADA_APP_KEY = os.getenv("LAZADA_APP_KEY", "105827")
-LAZADA_APP_SECRET = os.getenv("LAZADA_APP_SECRET", "r8ZMKhPxu1JZUCwTUBVMJiJnZKjhWeQF")
-LAZADA_USER_TOKEN = os.getenv("LAZADA_USER_TOKEN", "78513a0ff65342a7b95f789a756fd955")
+LAZADA_APP_KEY = os.getenv("LAZADA_APP_KEY")
+LAZADA_APP_SECRET = os.getenv("LAZADA_APP_SECRET")
+LAZADA_USER_TOKEN = os.getenv("LAZADA_USER_TOKEN")
 
 def generate_lazada_sign(api_path: str, params: dict, app_secret: str) -> str:
     """Tính toán chữ ký HMAC-SHA256 theo tiêu chuẩn của Lazada Open Platform"""
@@ -246,6 +246,11 @@ async def convert_link(request: Request, body: LinkRequest):
         publisher_income = round(commission * a_ratio)
 
     elif body.platform == "lazada":
+        if not LAZADA_APP_KEY or not LAZADA_APP_SECRET or not LAZADA_USER_TOKEN:
+            raise HTTPException(
+                status_code=500,
+                detail="Chưa cấu hình đầy đủ các biến môi trường LAZADA_APP_KEY, LAZADA_APP_SECRET, hoặc LAZADA_USER_TOKEN trên máy chủ."
+            )
         # 1. Giải mã link rút gọn Lazada nếu có
         cleaned_url = clean_lazada_url(original_url)
 
