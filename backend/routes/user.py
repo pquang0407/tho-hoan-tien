@@ -548,13 +548,13 @@ def leaderboard():
         })
 
     result.sort(key=lambda x: x["cashback"], reverse=True)
-    top_three = result[:3]
+    top_ten = result[:10]
     
     # Lưu vào bộ nhớ đệm
-    LEADERBOARD_CACHE["ranking"] = top_three
+    LEADERBOARD_CACHE["ranking"] = top_ten
     LEADERBOARD_CACHE["last_updated"] = now
     
     return {
         "success": True,
-        "data": top_three
+        "data": top_ten
     }

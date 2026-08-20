@@ -226,6 +226,35 @@ const About = ({ user }) => {
                         )}
                     </div>
                 )}
+
+                {/* Bảng danh sách từ Hạng 4 - Hạng 10 */}
+                {!loadingLeaderboard && leaderboard.length > 3 && (
+                    <div className="leaderboard-list slide-up-delay-1">
+                        {leaderboard.slice(3).map((player, index) => {
+                            const rankNum = index + 4;
+                            return (
+                                <div key={player.email || rankNum} className="leaderboard-row shadow-hover">
+                                    <div className="leaderboard-row-left">
+                                        <span className="leaderboard-rank-num">#{rankNum}</span>
+                                        <div className="leaderboard-row-avatar">
+                                            {player.avatar ? (
+                                                <img src={player.avatar} alt="avatar" />
+                                            ) : (
+                                                <span>{(player.name || player.email || "U")[0].toUpperCase()}</span>
+                                            )}
+                                        </div>
+                                        <span className="leaderboard-row-name">{player.name || player.email?.split('@')[0]}</span>
+                                    </div>
+                                    <div className="leaderboard-row-right">
+                                        <span className="leaderboard-row-money">
+                                            {Number(player.cashback || 0).toLocaleString("vi-VN")} đ
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
             </section>
 
             {/* --- CALL TO ACTION --- */}
