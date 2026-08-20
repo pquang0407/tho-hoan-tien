@@ -1,3 +1,7 @@
+import os
+import time
+import hashlib
+import hmac
 import requests
 from datetime import datetime
 from collections import defaultdict
@@ -22,6 +26,24 @@ from config.settings import (
 from middleware.auth import get_user_ratios
 from utils.shortener import generate_short_code
 from utils.url_cleaner import clean_shopee_url, clean_lazada_url
+
+# Thông tin cấu hình Lazada Affiliate API chính thức
+LAZADA_APP_KEY = os.getenv("LAZADA_APP_KEY", "105827")
+LAZADA_APP_SECRET = os.getenv("LAZADA_APP_SECRET", "r8ZMKhPxu1JZUCwTUBVMJiJnZKjhWeQF")
+LAZADA_USER_TOKEN = os.getenv("LAZADA_USER_TOKEN", "78513a0ff65342a7b95f789a756fd955")
+
+def generate_lazada_sign(api_path: str, params: dict, app_secret: str) -> str:
+    """Tính toán chữ ký HMAC-SHA256 theo tiêu chuẩn của Lazada Open Platform"""
+    sorted_params = sorted(params.items())
+    query_str = api_path
+    for key, val in sorted_params:
+        query_str += f"{key}{val}"
+    sign = hmac.new(
+        app_secret.encode("utf-8"),
+        query_str.encode("utf-8"),
+        hashlib.sha256
+    ).hexdigest().upper()
+    return sign
 
 router = APIRouter()
 
@@ -99,9 +121,14 @@ async def convert_link(request: Request, body: LinkRequest):
     url_match = re.search(r'(https?://[^\s|]+)', raw_text)
     original_url = url_match.group(1) if url_match else raw_text.strip()
     
+    # Loại bỏ URL khỏi văn bản trước khi tìm giá và tiêu đề để tránh khớp nhầm các ký tự/mã số trong URL (ví dụ .4.29d...)
+    clean_text = raw_text.replace(original_url, "").strip()
+    clean_text = re.sub(r'\|\s*$', '', clean_text).strip()
+    clean_text = re.sub(r'Mua ngay trên Lazada.*$', '', clean_text, flags=re.IGNORECASE).strip()
+    
     # Tìm giá bán nếu có (đặc biệt hữu ích khi người dùng copy cả tin từ app Lazada)
     pasted_price = 0.0
-    price_match = re.search(r'([\d.,]+)\s*(?:đ|₫|VND|vnd|d)', raw_text)
+    price_match = re.search(r'([\d.,]+)\s*(?:đ|₫|VND|vnd|d)', clean_text)
     if price_match:
         price_str = price_match.group(1).replace(".", "").replace(",", "")
         try:
@@ -111,12 +138,9 @@ async def convert_link(request: Request, body: LinkRequest):
 
     # Tìm tiêu đề sản phẩm nếu có
     pasted_title = ""
-    clean_text = raw_text.replace(original_url, "").strip()
-    clean_text = re.sub(r'\|\s*$', '', clean_text).strip()
-    clean_text = re.sub(r'Mua ngay trên Lazada.*$', '', clean_text, flags=re.IGNORECASE).strip()
     if clean_text:
         if price_match:
-            title_part = raw_text.split(price_match.group(0))[0].strip()
+            title_part = clean_text.split(price_match.group(0))[0].strip()
             title_part = re.sub(r'^\[.*?\]\s*', '', title_part)
             title_part = re.sub(r'[\s|,-]+$', '', title_part).strip()
             if title_part:
@@ -222,44 +246,59 @@ async def convert_link(request: Request, body: LinkRequest):
         publisher_income = round(commission * a_ratio)
 
     elif body.platform == "lazada":
-        campaign_id = LAZADA_CAMPAIGN_ID
-        if not campaign_id:
-            raise HTTPException(
-                status_code=400,
-                detail="Chưa cấu hình LAZADA_CAMPAIGN_ID trên máy chủ."
-            )
-
-        # 1. Giải mã link rút gọn Lazada nếu có (tránh chặn captcha)
+        # 1. Giải mã link rút gọn Lazada nếu có
         cleaned_url = clean_lazada_url(original_url)
 
-        # 2. Gọi API AccessTrade để tạo link tiếp thị liên kết
-        payload = {
-            "campaign_id": campaign_id,
-            "urls": [cleaned_url],
-            "utm_source": body.user_email,
-            "utm_medium": body.platform,
-            "utm_campaign": "cashback"
+        # 2. Gọi API chính thức Lazada /marketing/getlink để tạo link affiliate và lấy productId
+        base_url = "https://api.lazada.vn/rest"
+        api_path = "/marketing/getlink"
+        
+        params = {
+            "app_key": LAZADA_APP_KEY,
+            "timestamp": str(int(time.time() * 1000)),
+            "sign_method": "sha256",
+            "inputType": "url",
+            "inputValue": cleaned_url,
+            "userToken": LAZADA_USER_TOKEN
         }
-        response = requests.post(
-            "https://api.accesstrade.vn/v1/product_link/create",
-            headers=headers,
-            json=payload,
-            timeout=REQUEST_TIMEOUT
-        )
-        if response.status_code != 200:
-            raise HTTPException(status_code=500, detail=f"Không thể kết nối AccessTrade ({response.status_code})")
         
-        response_data = response.json()
-        if not response_data.get("success"):
-            raise HTTPException(status_code=400, detail="Không thể tạo link liên kết cho sản phẩm này.")
-            
-        success_links = response_data.get("data", {}).get("success_link", [])
-        if not success_links:
-            raise HTTPException(status_code=400, detail="Tạo link thất bại. Vui lòng kiểm tra lại liên kết sản phẩm.")
-            
-        link_data = success_links[0]
-        aff_link = link_data["aff_link"]
+        # Gắn Sub ID theo email để hỗ trợ đối soát đơn hàng sau này
+        sanitized_email = body.user_email.replace("-", "_").replace("@", "_at_").replace(".", "_")
+        params["subId1"] = sanitized_email
         
+        params["sign"] = generate_lazada_sign(api_path, params, LAZADA_APP_SECRET)
+        
+        try:
+            response = requests.get(f"{base_url}{api_path}", params=params, timeout=REQUEST_TIMEOUT)
+            if response.status_code != 200:
+                raise HTTPException(status_code=500, detail=f"Không thể kết nối API Lazada ({response.status_code})")
+                
+            res_data = response.json()
+            result = res_data.get("result", {})
+            success = result.get("success")
+            info_list = result.get("data", {}).get("urlBatchGetLinkInfoList", [])
+            
+            if not success or not info_list:
+                error_msg = result.get("error_msg") or "Tạo link thất bại từ Lazada API"
+                raise HTTPException(status_code=400, detail=error_msg)
+                
+            prod_info = info_list[0]
+            product_id = prod_info.get("productId")
+            aff_link = prod_info.get("regularPromotionLink")
+            product_name = prod_info.get("productName") or pasted_title or "Sản phẩm Lazada"
+            
+            # Tính toán tỷ lệ hoa hồng mặc định nếu không lấy được chi tiết sản phẩm
+            reg_commission_str = prod_info.get("regularCommission") or "7%"
+            try:
+                commission_rate = float(reg_commission_str.replace("%", "").strip()) / 100.0
+            except Exception:
+                commission_rate = 0.07
+                
+        except HTTPException as he:
+            raise he
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Lỗi hệ thống khi gọi API Lazada: {str(e)}")
+
         # 3. Tạo short code và định dạng link theo subdomain của bạn
         short_code = generate_short_code()
         db.collection("short_urls").document(short_code).set({
@@ -267,48 +306,60 @@ async def convert_link(request: Request, body: LinkRequest):
             "created_at": firestore.SERVER_TIMESTAMP
         })
         short_link = f"https://lazada.{BASE_DOMAIN}/{short_code}"
-        
-        # 4. Thiết lập tên sản phẩm và giá bán từ trích xuất văn bản thô
-        product_name = pasted_title if pasted_title else "Sản phẩm Lazada"
-        if not pasted_title and "lazada.vn/products/" in cleaned_url:
-            try:
-                parts = cleaned_url.split("lazada.vn/products/")[1].split("?")[0].split(".html")[0].split("-")
-                if len(parts) > 0 and parts[0] != "pdp":
-                    product_name = " ".join(parts[:-1])
-            except Exception:
-                pass
-                
-        product_image = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Lazada_Logo.svg/512px-Lazada_Logo.svg.png"
-            
+
+        # 4. Gọi tiếp API /marketing/product/feed để lấy ảnh thật và giá bán thật của sản phẩm
         product_price = pasted_price
-        if product_price <= 0:
-            product_price = 150000.0  # Giá bán mặc định tạm tính là 150.000đ khi dán link thô/laptop
-            is_estimated_price = True
+        product_image = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Lazada_Logo.svg/512px-Lazada_Logo.svg.png"
+        is_estimated_price = True
         
-        # Phân tích ngành hàng cơ bản dựa trên từ khóa trong URL hoặc Tiêu đề để áp hoa hồng chuẩn của AccessTrade
-        normalized_title = product_name.lower()
-        normalized_url = cleaned_url.lower()
-        
-        # Danh mục 0% (Điện thoại, máy tính bảng, Apple, sữa em bé < 2 tuổi, bia, thẻ cào)
-        zero_keywords = [
-            "dien-thoai", "phone", "tablet", "may-tinh-bang", "ipad", "iphone", "apple",
-            "macbook", "sim-", "card-", "the-cao", "sua-bot", "sua-formula", "bia-", "heineken",
-            "tiger", "sapporo", "budweiser"
-        ]
-        # Danh mục 2.2% (Tạp hóa, bách hóa)
-        grocery_keywords = [
-            "tap-hoa", "grocery", "bach-hoa", "gia-vi", "an-lien", "mi-goi", "nuoc-tuong",
-            "dau-an", "gao-", "sieu-thi"
-        ]
-        
-        if any(kw in normalized_url or kw in normalized_title for kw in zero_keywords):
-            estimated_commission_rate = 0.0
-        elif any(kw in normalized_url or kw in normalized_title for kw in grocery_keywords):
-            estimated_commission_rate = 0.022
-        else:
-            estimated_commission_rate = 0.07 # 7.00% toàn bộ các ngành hàng khác
+        if product_id:
+            feed_api_path = "/marketing/product/feed"
+            feed_params = {
+                "app_key": LAZADA_APP_KEY,
+                "timestamp": str(int(time.time() * 1000)),
+                "sign_method": "sha256",
+                "offerType": "1", # Regular offer
+                "productIds": f"[{product_id}]",
+                "userToken": LAZADA_USER_TOKEN,
+                "page": "1",
+                "limit": "1"
+            }
+            feed_params["sign"] = generate_lazada_sign(feed_api_path, feed_params, LAZADA_APP_SECRET)
             
-        commission = product_price * estimated_commission_rate
+            try:
+                feed_response = requests.get(f"{base_url}{feed_api_path}", params=feed_params, timeout=REQUEST_TIMEOUT)
+                if feed_response.status_code == 200:
+                    feed_data = feed_response.json()
+                    feed_result = feed_data.get("result", {})
+                    feed_list = feed_result.get("data", [])
+                    if feed_result.get("success") and feed_list:
+                        feed_info = feed_list[0]
+                        product_name = feed_info.get("productName", product_name)
+                        
+                        # Cập nhật ảnh thật từ API
+                        pictures = feed_info.get("pictures", [])
+                        if pictures:
+                            product_image = pictures[0]
+                            
+                        # Cập nhật giá bán thật từ API
+                        discount_price = feed_info.get("discountPrice")
+                        if discount_price is not None:
+                            product_price = float(discount_price)
+                            is_estimated_price = False
+                            
+                        # Cập nhật tỷ lệ hoa hồng chính xác từ API
+                        rate = feed_info.get("totalCommissionRate")
+                        if rate is not None:
+                            commission_rate = float(rate)
+            except Exception as e:
+                print(f"Lazada Product Feed API error: {e}")
+
+        # Tính toán tiền hoàn lại
+        if product_price <= 0:
+            product_price = 150000.0
+            is_estimated_price = True
+            
+        commission = product_price * commission_rate
         
         u_ratio, a_ratio, c_percent = get_user_ratios(body.user_email)
         cashback = round(commission * u_ratio)
