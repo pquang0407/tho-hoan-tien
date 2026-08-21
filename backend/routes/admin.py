@@ -1,3 +1,8 @@
+import os
+import time
+import hmac
+import hashlib
+import requests
 import openpyxl
 from io import BytesIO
 from datetime import datetime, timedelta, timezone
@@ -595,4 +600,192 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
     return {
         "success": True,
         "message": f"Đã nhập thành công {success_count} đơn hàng Shopee. Bỏ qua {skipped_count} dòng lỗi."
+    }
+
+# --- LAZADA INTEGRATION API FOR SYNCING ORDERS ---
+LAZADA_APP_KEY = os.getenv("LAZADA_APP_KEY")
+LAZADA_APP_SECRET = os.getenv("LAZADA_APP_SECRET")
+LAZADA_USER_TOKEN = os.getenv("LAZADA_USER_TOKEN")
+
+def generate_lazada_sign(api_path: str, params: dict, app_secret: str) -> str:
+    """Tính toán chữ ký HMAC-SHA256 theo tiêu chuẩn của Lazada Open Platform"""
+    sorted_params = sorted(params.items())
+    query_str = api_path
+    for key, val in sorted_params:
+        query_str += f"{key}{val}"
+    sign = hmac.new(
+        app_secret.encode("utf-8"),
+        query_str.encode("utf-8"),
+        hashlib.sha256
+    ).hexdigest().upper()
+    return sign
+
+@router.post("/api/admin/sync-lazada")
+@limiter.limit("5/minute")
+def sync_lazada_orders(request: Request, days: int = 7):
+    verify_admin(request)
+    
+    if not LAZADA_APP_KEY or not LAZADA_APP_SECRET or not LAZADA_USER_TOKEN:
+        raise HTTPException(
+            status_code=500,
+            detail="Chưa cấu hình các biến môi trường LAZADA_APP_KEY, LAZADA_APP_SECRET, hoặc LAZADA_USER_TOKEN trên máy chủ."
+        )
+
+    # 1. Tính toán khoảng thời gian đồng bộ (Ví dụ: 7 ngày qua)
+    # Định dạng ngày: YYYY-MM-DD
+    # Múi giờ Việt Nam (UTC+7)
+    vn_tz = timezone(timedelta(hours=7))
+    now_vn = datetime.now(vn_tz)
+    start_date = (now_vn - timedelta(days=days)).strftime("%Y-%m-%d")
+    end_date = now_vn.strftime("%Y-%m-%d")
+
+    base_url = "https://api.lazada.vn/rest"
+    api_path = "/marketing/conversion/report"
+
+    # API hỗ trợ phân trang, ta chạy tối đa 10 trang (tối đa 1000 đơn hàng) để tránh treo server
+    imported_count = 0
+    updated_count = 0
+    page = 1
+    limit = 100
+
+    while page <= 10:
+        params = {
+            "app_key": LAZADA_APP_KEY,
+            "timestamp": str(int(time.time() * 1000)),
+            "sign_method": "sha256",
+            "userToken": LAZADA_USER_TOKEN,
+            "dateStart": start_date,
+            "dateEnd": end_date,
+            "page": str(page),
+            "limit": str(limit)
+        }
+        params["sign"] = generate_lazada_sign(api_path, params, LAZADA_APP_SECRET)
+
+        try:
+            res = requests.get(f"{base_url}{api_path}", params=params, timeout=15)
+            if res.status_code != 200:
+                print(f"Lazada API sync failed page {page}: HTTP {res.status_code}")
+                break
+                
+            res_data = res.json()
+            result = res_data.get("result", {})
+            success = result.get("success")
+            orders_list = result.get("data", [])
+            
+            if not success or not orders_list:
+                break
+
+            for order_item in orders_list:
+                order_id = str(order_item.get("orderId"))
+                sub_order_id = str(order_item.get("subOrderId"))
+                transaction_id = f"lazada_{sub_order_id}"
+                
+                # Trạng thái đơn hàng
+                status_str = str(order_item.get("status", "")).lower()
+                
+                # Quy đổi trạng thái đơn hàng
+                # status_code: 0 = pending, 1 = approved, 2 = rejected
+                if "delivered" in status_str:
+                    confirmed = 1
+                    status_code = 1
+                elif any(x in status_str for x in ["return", "cancel", "refund", "reject"]):
+                    confirmed = 0
+                    status_code = 2
+                else:
+                    confirmed = 0
+                    status_code = 0
+
+                # Số tiền đơn hàng và hoa hồng
+                product_price = float(order_item.get("orderAmt", 0.0))
+                reward = float(order_item.get("estPayout", 0.0))
+                
+                # Giải mã email khách hàng từ subId1
+                sub_id1 = order_item.get("subId1") or ""
+                email = ""
+                
+                if sub_id1:
+                    if "_at_" in sub_id1:
+                        parts = sub_id1.split("_at_")
+                        username = parts[0]
+                        domain = parts[1].replace("_", ".")
+                        # Chuẩn hóa tên miền
+                        if not domain.endswith("com") and not domain.endswith("vn") and not domain.endswith("net"):
+                            if domain.startswith("gmail"):
+                                domain = "gmail.com"
+                            elif domain.startswith("yahoo"):
+                                domain = "yahoo.com"
+                        temp_email = f"{username}@{domain}"
+                        
+                        # Khớp chéo database để lấy email thật chính xác nếu bị cắt ngắn
+                        matched_user_email = ""
+                        try:
+                            query = db.collection("users").where("email", ">=", username).where("email", "<", username + "\uf8ff").limit(3).stream()
+                            for doc in query:
+                                u_email = doc.to_dict().get("email", "")
+                                u_sanitized = u_email.replace("-", "_").replace("@", "_at_").replace(".", "_")
+                                if u_sanitized.startswith(sub_id1) or sub_id1.startswith(u_sanitized[:len(sub_id1)]):
+                                    matched_user_email = u_email
+                                    break
+                        except Exception:
+                            pass
+                        email = matched_user_email if matched_user_email else temp_email
+                    elif "@" in sub_id1:
+                        email = sub_id1
+
+                # Thời gian tạo đơn
+                conversion_time = order_item.get("conversionTime")
+                if conversion_time:
+                    sales_time_str = str(conversion_time).replace(" ", "T")
+                else:
+                    sales_time_str = datetime.now(vn_tz).strftime("%Y-%m-%dT%H:%M:%S")
+
+                # Lưu vào Firestore
+                order_doc = db.collection("orders").document(transaction_id)
+                existing_doc = order_doc.get()
+                
+                order_payload = {
+                    "transaction_id": transaction_id,
+                    "order_id": order_id,
+                    "campaign_id": "Lazada",
+                    "product_id": str(order_item.get("sku", "")),
+                    "quantity": 1,
+                    "product_price": product_price,
+                    "reward": reward,
+                    "sales_time": sales_time_str,
+                    "status": status_code,
+                    "confirmed": confirmed,
+                    "utm_source": email,
+                    "utm_content": sub_id1,
+                    "utm_medium": "lazada",
+                    "created_at": firestore.SERVER_TIMESTAMP
+                }
+                
+                order_doc.set(order_payload, merge=True)
+                
+                if existing_doc.exists:
+                    updated_count += 1
+                else:
+                    imported_count += 1
+                    
+            if len(orders_list) < limit:
+                break
+            page += 1
+        except Exception as e:
+            print(f"Lỗi khi đồng bộ trang {page}: {e}")
+            break
+
+    # Reset cache báo cáo Admin và bảng xếp hạng khi đồng bộ thành công
+    global ADMIN_REPORTS_CACHE
+    ADMIN_REPORTS_CACHE["last_updated"] = 0
+    try:
+        from routes.user import LEADERBOARD_CACHE
+        LEADERBOARD_CACHE["last_updated"] = 0
+    except:
+        pass
+
+    return {
+        "success": True,
+        "message": f"Đồng bộ đơn hàng Lazada hoàn tất từ ngày {start_date} đến {end_date}.",
+        "imported": imported_count,
+        "updated": updated_count
     }

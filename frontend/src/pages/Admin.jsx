@@ -88,6 +88,7 @@ const Admin = ({ user }) => {
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
     const [filterLoading, setFilterLoading] = useState(false);
+    const [lazadaSyncLoading, setLazadaSyncLoading] = useState(false);
     const [syncLoading, setSyncLoading] = useState(false);
 
     const formatMoney = (val) => Number(val || 0).toLocaleString("vi-VN") + " đ";
@@ -234,6 +235,31 @@ const Admin = ({ user }) => {
             alert("Có lỗi xảy ra trong quá trình đồng bộ!");
         } finally {
             setSyncLoading(false);
+        }
+    };
+
+    const handleSyncLazadaOrders = async () => {
+        if (!window.confirm("Bạn có chắc chắn muốn đồng bộ đơn hàng từ Lazada trong 7 ngày qua?")) return;
+        setLazadaSyncLoading(true);
+        try {
+            const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
+            const token = await user.getIdToken();
+            const res = await fetch(`${API}/api/admin/sync-lazada?days=7`, {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(`Đồng bộ thành công! Nhập mới: ${data.imported} đơn, Cập nhật: ${data.updated} đơn.`);
+                if (typeof fetchAccessTradeReport === "function") fetchAccessTradeReport();
+            } else {
+                alert(`Lỗi đồng bộ: ${data.detail || "Không rõ nguyên nhân"}`);
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Lỗi kết nối khi đồng bộ đơn hàng Lazada.");
+        } finally {
+            setLazadaSyncLoading(false);
         }
     };
 
@@ -417,6 +443,15 @@ const Admin = ({ user }) => {
                     <button className="btn-action-sync" onClick={handleSyncUsers} disabled={syncLoading}>
                         <SyncIcon />
                         <span>{syncLoading ? "Đang đồng bộ..." : "Đồng bộ TV"}</span>
+                    </button>
+                    <button 
+                        className="btn-action-sync" 
+                        onClick={handleSyncLazadaOrders} 
+                        disabled={lazadaSyncLoading}
+                        style={{ backgroundColor: "#267df4", color: "#fff" }}
+                    >
+                        <SyncIcon />
+                        <span>{lazadaSyncLoading ? "Đang đồng bộ..." : "Đồng bộ Lazada"}</span>
                     </button>
                     <button className="btn-action-primary" onClick={() => document.getElementById("shopee-import-input").click()} style={{ backgroundColor: "#ff5722", color: "#fff" }}>
                         <ExcelIcon />
