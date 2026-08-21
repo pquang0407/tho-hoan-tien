@@ -90,6 +90,7 @@ const Admin = ({ user }) => {
     const [filterLoading, setFilterLoading] = useState(false);
     const [lazadaSyncLoading, setLazadaSyncLoading] = useState(false);
     const [syncLoading, setSyncLoading] = useState(false);
+    const [hideCancelled, setHideCancelled] = useState(true);
 
     const formatMoney = (val) => Number(val || 0).toLocaleString("vi-VN") + " đ";
 
@@ -388,10 +389,15 @@ const Admin = ({ user }) => {
         (log.product_name || "").toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const filteredOrders = orders.filter(order =>
-        (order.utm_source || "").toLowerCase().includes(orderSearchTerm.toLowerCase()) ||
-        (order.order_id || "").toLowerCase().includes(orderSearchTerm.toLowerCase())
-    );
+    const filteredOrders = orders.filter(order => {
+        if (!orderSearchTerm.trim() && hideCancelled && order.order_status === 2) {
+            return false;
+        }
+        return (
+            (order.utm_source || "").toLowerCase().includes(orderSearchTerm.toLowerCase()) ||
+            (order.order_id || "").toLowerCase().includes(orderSearchTerm.toLowerCase())
+        );
+    });
 
     const filteredRegisteredUsers = registeredUsers.filter(u =>
         (u.displayName || "").toLowerCase().includes(userSearchTerm.toLowerCase()) ||
@@ -723,16 +729,27 @@ const Admin = ({ user }) => {
                     <div className="tab-content-wrapper fade-in">
                         <div className="admin-card-section">
                             <div className="card-section-header">
-                                <h3 className="card-heading-title">Danh Sách Đơn Hàng AccessTrade</h3>
-                                <div className="table-search-box">
-                                    <SearchIcon />
-                                    <input
-                                        type="text"
-                                        placeholder="Tìm mã đơn hàng hoặc email người dùng..."
-                                        value={orderSearchTerm}
-                                        onChange={(e) => setOrderSearchTerm(e.target.value)}
-                                        className="styled-search-input"
-                                    />
+                                <h3 className="card-heading-title">Danh Sách Đơn Hàng Hoàn Tiền</h3>
+                                <div className="header-actions-flex" style={{ display: "flex", alignItems: "center", gap: "20px", flexWrap: "wrap" }}>
+                                    <label className="toggle-hide-cancelled-label" style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", fontWeight: "600", cursor: "pointer", color: "#64748b" }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={hideCancelled}
+                                            onChange={(e) => setHideCancelled(e.target.checked)}
+                                            style={{ width: "16px", height: "16px", accentColor: "#f27b8a", cursor: "pointer" }}
+                                        />
+                                        <span>Ẩn đơn bị hủy (Bị Hủy)</span>
+                                    </label>
+                                    <div className="table-search-box">
+                                        <SearchIcon />
+                                        <input
+                                            type="text"
+                                            placeholder="Tìm mã đơn hàng hoặc email người dùng..."
+                                            value={orderSearchTerm}
+                                            onChange={(e) => setOrderSearchTerm(e.target.value)}
+                                            className="styled-search-input"
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
