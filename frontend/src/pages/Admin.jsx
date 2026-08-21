@@ -91,6 +91,8 @@ const Admin = ({ user }) => {
     const [lazadaSyncLoading, setLazadaSyncLoading] = useState(false);
     const [syncLoading, setSyncLoading] = useState(false);
     const [hideCancelled, setHideCancelled] = useState(true);
+    const [orderStartDate, setOrderStartDate] = useState("");
+    const [orderEndDate, setOrderEndDate] = useState("");
 
     const formatMoney = (val) => Number(val || 0).toLocaleString("vi-VN") + " đ";
 
@@ -392,6 +394,14 @@ const Admin = ({ user }) => {
     const filteredOrders = orders.filter(order => {
         if (!orderSearchTerm.trim() && hideCancelled && order.order_status === 2) {
             return false;
+        }
+        if (orderStartDate) {
+            const orderDateStr = (order.order_time || "").substring(0, 10);
+            if (orderDateStr < orderStartDate) return false;
+        }
+        if (orderEndDate) {
+            const orderDateStr = (order.order_time || "").substring(0, 10);
+            if (orderDateStr > orderEndDate) return false;
         }
         return (
             (order.utm_source || "").toLowerCase().includes(orderSearchTerm.toLowerCase()) ||
@@ -740,6 +750,33 @@ const Admin = ({ user }) => {
                                         />
                                         <span>Ẩn đơn bị hủy (Bị Hủy)</span>
                                     </label>
+                                    
+                                    {/* Bộ lọc ngày cho đơn hàng */}
+                                    <div className="order-date-filters" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                        <span style={{ fontSize: "13px", fontWeight: "600", color: "#64748b" }}>Từ:</span>
+                                        <input
+                                            type="date"
+                                            value={orderStartDate}
+                                            onChange={(e) => setOrderStartDate(e.target.value)}
+                                            style={{ padding: "6px 12px", borderRadius: "8px", border: "1px solid var(--border-color)", fontSize: "13px", fontWeight: "600", outline: "none", color: "#1e293b" }}
+                                        />
+                                        <span style={{ fontSize: "13px", fontWeight: "600", color: "#64748b" }}>Đến:</span>
+                                        <input
+                                            type="date"
+                                            value={orderEndDate}
+                                            onChange={(e) => setOrderEndDate(e.target.value)}
+                                            style={{ padding: "6px 12px", borderRadius: "8px", border: "1px solid var(--border-color)", fontSize: "13px", fontWeight: "600", outline: "none", color: "#1e293b" }}
+                                        />
+                                        {(orderStartDate || orderEndDate) && (
+                                            <button 
+                                                onClick={() => { setOrderStartDate(""); setOrderEndDate(""); }}
+                                                style={{ background: "none", border: "none", color: "#f27b8a", fontSize: "12px", fontWeight: "700", cursor: "pointer", marginLeft: "4px" }}
+                                            >
+                                                Xóa lọc
+                                            </button>
+                                        )}
+                                    </div>
+
                                     <div className="table-search-box">
                                         <SearchIcon />
                                         <input
@@ -939,6 +976,7 @@ const Admin = ({ user }) => {
                                                 <th>Ảnh đại diện</th>
                                                 <th>Tên hiển thị</th>
                                                 <th>Email</th>
+                                                <th>Ví (Khả dụng / Chờ / Rút)</th>
                                                 <th>Ngày đăng ký</th>
                                                 <th>Hình thức đăng nhập</th>
                                             </tr>
@@ -961,6 +999,19 @@ const Admin = ({ user }) => {
                                                     </td>
                                                     <td><span className="font-weight-bold" style={{ color: "#2c3e50", fontSize: "14px" }}>{u.displayName || "N/A"}</span></td>
                                                     <td><span className="styled-user-email">{u.email}</span></td>
+                                                    <td>
+                                                        <div style={{ display: "flex", flexDirection: "column", gap: "2px", lineHeight: "1.3" }}>
+                                                            <span style={{ color: "#10b981", fontWeight: "800", fontSize: "13px" }} title="Số dư khả dụng để yêu cầu rút">
+                                                                🟢 {formatMoney(u.balance || 0)}
+                                                            </span>
+                                                            <span style={{ color: "#f59e0b", fontWeight: "700", fontSize: "11px" }} title="Hoa hồng đang chờ sàn TMĐT duyệt">
+                                                                🟡 Chờ: {formatMoney(u.pending || 0)}
+                                                            </span>
+                                                            <span style={{ color: "#64748b", fontWeight: "700", fontSize: "11px" }} title="Tổng số tiền thành viên này đã rút">
+                                                                ⚪ Rút: {formatMoney(u.withdrawn || 0)}
+                                                            </span>
+                                                        </div>
+                                                    </td>
                                                     <td><span className="time-text-muted">{u.createdAt || "--"}</span></td>
                                                     <td>
                                                         <span 
@@ -983,7 +1034,7 @@ const Admin = ({ user }) => {
                                             ))}
                                             {filteredRegisteredUsers.length === 0 && (
                                                 <tr>
-                                                    <td colSpan="5" className="empty-table-placeholder">
+                                                    <td colSpan="6" className="empty-table-placeholder">
                                                         <div className="empty-view">
                                                             <span className="empty-icon-bunny">🐰</span>
                                                             <p>Không tìm thấy thành viên nào</p>

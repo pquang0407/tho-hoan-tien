@@ -275,31 +275,92 @@ def get_admin_users(request: Request, start_date: str = None, end_date: str = No
 @router.get("/api/admin/registered-users")
 @limiter.limit("30/minute")
 def get_registered_users(request: Request):
-    """Admin lấy toàn bộ danh sách thành viên đăng ký từ bảng users"""
+    """Admin lấy toàn bộ danh sách thành viên đăng ký kèm số dư ví"""
     verify_admin(request)
     
-    docs = db.collection("users").stream()
+    # 1. Lấy toàn bộ danh sách users
+    users_docs = db.collection("users").stream()
+    users_list = []
+    for doc in users_docs:
+        users_list.append(doc.to_dict())
+        
+    # 2. Lấy toàn bộ đơn hàng để tính toán hoa hồng chéo (gộp theo email)
+    orders_docs = db.collection("orders").stream()
+    user_approved_cashback = defaultdict(float)
+    user_pending_cashback = defaultdict(float)
+    
+    for doc in orders_docs:
+        order = doc.to_dict()
+        email = order.get("utm_source")
+        if not email:
+            continue
+        confirmed = int(order.get("confirmed", 0))
+        status = int(order.get("status", 0))
+        reward = float(order.get("reward", 0))
+        
+        # Lấy tỷ lệ chia của user
+        u_ratio, _, _ = get_user_ratios(email)
+        cashback = reward * u_ratio
+        
+        if confirmed == 1:
+            user_approved_cashback[email] += cashback
+        elif status != 2:
+            user_pending_cashback[email] += cashback
+            
+    # 3. Lấy toàn bộ withdrawals để tính toán rút tiền
+    withdrawals_docs = db.collection("withdrawals").stream()
+    user_approved_withdraw = defaultdict(float)
+    user_pending_withdraw = defaultdict(float)
+    
+    for doc in withdrawals_docs:
+        w = doc.to_dict()
+        email = w.get("user_email")
+        if not email:
+            continue
+        status = w.get("status")
+        amount = float(w.get("amount", 0))
+        
+        if status == "approved":
+            user_approved_withdraw[email] += amount
+        elif status == "pending":
+            user_pending_withdraw[email] += amount
+            
+    # 4. Gom dữ liệu trả về
     result = []
-    for doc in docs:
-        data = doc.to_dict()
+    for u in users_list:
+        email = u.get("email", "")
+        if not email:
+            continue
+            
         created_time = ""
-        created_at_ms = data.get("createdAt")
+        created_at_ms = u.get("createdAt")
         if created_at_ms:
             try:
-                # Đổi milliseconds sang readable string
                 created_time = datetime.fromtimestamp(created_at_ms / 1000, tz=timezone.utc)
-                # Đổi sang giờ VN (+7)
                 created_time = (created_time + timedelta(hours=7)).strftime("%d/%m/%Y %H:%M")
             except:
                 created_time = str(created_at_ms)
                 
+        # Tính toán khả dụng
+        approved = user_approved_cashback.get(email, 0.0)
+        app_withdraw = user_approved_withdraw.get(email, 0.0)
+        pend_withdraw = user_pending_withdraw.get(email, 0.0)
+        pending = user_pending_cashback.get(email, 0.0)
+        
+        available_balance = max(approved - app_withdraw - pend_withdraw, 0.0)
+        
         result.append({
-            "email": data.get("email", ""),
-            "displayName": data.get("displayName", ""),
-            "photoURL": data.get("photoURL", ""),
+            "email": email,
+            "displayName": u.get("displayName", ""),
+            "photoURL": u.get("photoURL", ""),
             "createdAt": created_time,
-            "provider": data.get("provider", "")
+            "provider": u.get("provider", ""),
+            "balance": round(available_balance),
+            "pending": round(pending),
+            "withdrawn": round(app_withdraw)
         })
+        
+    result.sort(key=lambda x: x["createdAt"], reverse=True)
     return {"success": True, "data": result}
 
 @router.post("/api/admin/sync-users")
