@@ -121,7 +121,7 @@ def admin_reports(request: Request):
             "logs": firebase["logs"]
         },
         "analytics": {**analytics, "order_status": {"approved": approved_count, "pending": pending_count, "rejected": reject_count}},
-        "orders": result[:30]
+        "orders": result
     }
     
     # Lưu kết quả vào Cache

@@ -497,7 +497,7 @@ const Admin = ({ user }) => {
                     <button className={`tab-nav-item ${activeTab === "orders" ? "active" : ""}`} onClick={() => setActiveTab("orders")}>
                         <OrdersIcon />
                         <span>Đơn Hàng</span>
-                        {orders.length > 0 && <span className="tab-badge-count">{orders.length}</span>}
+                        {filteredOrders.length > 0 && <span className="tab-badge-count">{filteredOrders.length}</span>}
                     </button>
                     <button className={`tab-nav-item ${activeTab === "withdrawals" ? "active" : ""}`} onClick={() => setActiveTab("withdrawals")}>
                         <WithdrawalsIcon />
