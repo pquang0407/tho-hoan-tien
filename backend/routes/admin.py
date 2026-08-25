@@ -479,7 +479,7 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
         name_lower = name.lower().strip()
         
         # Match order_id (ID đơn hàng / Mã đơn hàng)
-        if any(x in name_lower for x in ["mã đơn hàng", "ma don hang", "order id", "order_id", "id đơn hàng", "id don hang", "id đơn", "id don"]):
+        if any(x in name_lower for x in ["mã đơn hàng", "ma don hang", "order id", "order_id", "id đơn hàng", "id don hang", "id đơn", "id don", "mã đơn", "ma don"]):
             col_map["order_id"] = idx
             
         # Match status (Trạng thái)
@@ -488,7 +488,7 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
                 col_map["status"] = idx
             
         # Match product_price (Giá trị đơn hàng)
-        elif any(x in name_lower for x in ["giá trị đơn", "gia tri don", "order value", "doanh số", "doanh so", "giá trị sản phẩm", "gia tri san pham", "product price", "price", "giá bán", "gia ban"]):
+        elif any(x in name_lower for x in ["giá trị đơn", "gia tri don", "order value", "doanh số", "doanh so", "giá trị sản phẩm", "gia tri san pham", "product price", "price", "giá bán", "gia ban", "giá trị đơn hàng", "gia tri don hang"]):
             col_map["product_price"] = idx
             
         # Match reward (Hoa hồng) - Exclude rate/type/level columns
@@ -496,12 +496,12 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
             if not any(x in name_lower for x in ["tỉ lệ", "ti le", "loại", "loai", "mức", "muc", "tỷ lệ", "ty le"]):
                 col_map["reward"] = idx
                 
-        # Match sub_id (sub_id1, sub_id2, sub_id)
-        elif any(x in name_lower for x in ["sub_id", "sub id", "sub-id", "subid", "utm_content", "sub_id1", "sub_id2", "sub_id3", "sub_id4", "sub_id5", "sub_id 1", "sub_id 2"]):
+        # Match sub_id (sub_id1, sub_id2, sub_id, utm_source)
+        elif any(x in name_lower for x in ["sub_id", "sub id", "sub-id", "subid", "utm_content", "sub_id1", "sub_id2", "sub_id3", "sub_id4", "sub_id5", "sub_id 1", "sub_id 2", "utm_source", "utm source"]):
             col_map["sub_ids"].append(idx)
             
         # Match sales_time (Thời gian đặt hàng)
-        elif any(x in name_lower for x in ["thời gian đặt", "thoi gian dat", "sales time", "sales_time", "order time", "thời gian tạo", "thoi gian tao"]):
+        elif any(x in name_lower for x in ["thời gian đặt", "thoi gian dat", "sales time", "sales_time", "order time", "thời gian tạo", "thoi gian tao", "thời gian mua", "thoi gian mua"]):
             col_map["sales_time"] = idx
         elif "thời gian" in name_lower or "thoi gian" in name_lower or "time" in name_lower:
             if "sales_time" not in col_map:
@@ -510,6 +510,10 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
         # Match transaction_id
         elif any(x in name_lower for x in ["mã lượt click", "ma luot click", "click id", "transaction_id", "transaction id"]):
             col_map["transaction_id"] = idx
+            
+        # Match advertiser/campaign
+        elif any(x in name_lower for x in ["advertiser", "campaign", "chiến dịch", "chien dich", "nhà quảng cáo", "nha quang cao"]):
+            col_map["advertiser"] = idx
 
     required_cols = ["order_id", "status", "reward"]
     missing = [c for c in required_cols if c not in col_map]
@@ -543,10 +547,10 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
             confirmed = 0
             status_code = 0
             
-            if any(x in status_str for x in ["hoàn thành", "thành công", "completed", "đã hoàn thành"]):
+            if any(x in status_str for x in ["hoàn thành", "thành công", "completed", "đã hoàn thành", "được duyệt", "duyệt", "approved"]):
                 confirmed = 1
                 status_code = 1
-            elif any(x in status_str for x in ["hủy", "cancelled", "không thành công", "đã hủy"]):
+            elif any(x in status_str for x in ["hủy", "cancelled", "không thành công", "đã hủy", "bị hủy", "rejected", "reject"]):
                 confirmed = 0
                 status_code = 2
             else:
@@ -565,6 +569,25 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
             reward = parse_float(get_val("reward"))
             product_price = parse_float(get_val("product_price"))
             
+            # Dynamic Advertiser / Campaign detection
+            raw_campaign = get_val("advertiser", "Shopee")
+            campaign_id = str(raw_campaign).strip()
+            camp_lower = campaign_id.lower()
+            
+            if "tiktok" in camp_lower:
+                utm_medium = "tiktok"
+                # Keep original or map to TikTok Shop
+                if campaign_id == "Shopee" or not campaign_id:
+                    campaign_id = "TikTok Shop"
+            elif "lazada" in camp_lower:
+                utm_medium = "lazada"
+                if campaign_id == "Shopee" or not campaign_id:
+                    campaign_id = "Lazada"
+            elif "shopee" in camp_lower:
+                utm_medium = "shopee"
+            else:
+                utm_medium = "shopee"
+
             # Extract sub_ids values and search for email containing _at_
             sub_id_vals = []
             for sub_idx in col_map.get("sub_ids", []):
@@ -579,7 +602,6 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
                     username = parts[0]
                     domain = parts[1].replace("_", ".")
                     
-                    # 1. Direct reconstruction with domain completion
                     if not domain.endswith("com") and not domain.endswith("vn") and not domain.endswith("net"):
                         if domain.startswith("gmail"):
                             domain = "gmail.com"
@@ -587,7 +609,6 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
                             domain = "yahoo.com"
                     temp_email = f"{username}@{domain}"
                     
-                    # 2. Match with database for truncated emails
                     matched_user_email = ""
                     try:
                         query = db.collection("users").where("email", ">=", username).where("email", "<", username + "\uf8ff").limit(5).stream()
@@ -603,7 +624,7 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
                     email = matched_user_email if matched_user_email else temp_email
                     break
             else:
-                # Fallback to direct email checking in any sub_id field
+                # Fallback to direct email checking in any sub_id field (like utm_source in TikTok/AccessTrade)
                 for val in sub_id_vals:
                     if "@" in val:
                         email = val
@@ -616,7 +637,7 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
             if raw_tx_id:
                 transaction_id = str(raw_tx_id).strip()
             else:
-                transaction_id = f"shopee_{order_id}"
+                transaction_id = f"{utm_medium}_{order_id}"
 
             sales_time = get_val("sales_time")
             if sales_time:
@@ -630,7 +651,7 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
             db.collection("orders").document(transaction_id).set({
                 "transaction_id": transaction_id,
                 "order_id": order_id,
-                "campaign_id": "Shopee",
+                "campaign_id": campaign_id,
                 "product_id": "",
                 "quantity": 1,
                 "product_price": product_price,
@@ -640,7 +661,7 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
                 "confirmed": confirmed,
                 "utm_source": email,
                 "utm_content": sub_id,
-                "utm_medium": "shopee",
+                "utm_medium": utm_medium,
                 "created_at": firestore.SERVER_TIMESTAMP
             }, merge=True)
             

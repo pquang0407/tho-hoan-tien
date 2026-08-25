@@ -270,7 +270,7 @@ const Admin = ({ user }) => {
         const file = e.target.files[0];
         if (!file) return;
 
-        if (!window.confirm(`Xác nhận nhập đơn hàng từ file Excel Shopee "${file.name}"?`)) {
+        if (!window.confirm(`Xác nhận nhập đơn hàng từ file báo cáo "${file.name}"?`)) {
             e.target.value = "";
             return;
         }
@@ -291,10 +291,10 @@ const Admin = ({ user }) => {
 
             const data = await res.json();
             if (res.ok && data.success) {
-                alert(data.message || "Nhập báo cáo Shopee thành công!");
+                alert(data.message || "Nhập báo cáo đơn hàng thành công!");
                 fetchAccessTradeReport();
             } else {
-                alert(data.detail || "Nhập báo cáo Shopee thất bại!");
+                alert(data.detail || "Nhập báo cáo đơn hàng thất bại!");
             }
         } catch (err) {
             console.error(err);
@@ -471,7 +471,7 @@ const Admin = ({ user }) => {
                     </button>
                     <button className="btn-action-primary" onClick={() => document.getElementById("shopee-import-input").click()} style={{ backgroundColor: "#ff5722", color: "#fff" }}>
                         <ExcelIcon />
-                        <span>Nhập Shopee Excel</span>
+                        <span>Nhập Excel Shopee/TikTok Shop</span>
                     </button>
                     <input
                         type="file"
