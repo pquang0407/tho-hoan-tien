@@ -30,6 +30,108 @@ ADMIN_REPORTS_CACHE = {
     "last_updated": 0
 }
 
+def cleanup_database_duplicates(db):
+    try:
+        orders_ref = db.collection("orders")
+        docs = list(orders_ref.stream())
+        
+        # Group by order_id
+        order_groups = {}
+        for doc in docs:
+            data = doc.to_dict()
+            oid = data.get("order_id")
+            if not oid:
+                continue
+            if oid not in order_groups:
+                order_groups[oid] = []
+            order_groups[oid].append((doc.id, data))
+            
+        for oid, items in order_groups.items():
+            if len(items) <= 1:
+                continue
+                
+            # Find the master document (non-fallback one, or the one with numeric ID)
+            master_id = None
+            master_data = None
+            
+            # Prefer document ID that is numeric or doesn't start with fallback prefixes
+            for doc_id, data in items:
+                is_fallback = any(doc_id.startswith(p) for p in ["shopee_", "tiktok_", "lazada_", "shopee-", "tiktok-", "lazada-"])
+                if not is_fallback:
+                    master_id = doc_id
+                    master_data = data
+                    break
+            
+            if not master_id:
+                # Pick the first one as master
+                master_id, master_data = items[0]
+                
+            updated = False
+            docs_to_delete = []
+            
+            # Merge fields from all duplicates into master
+            for doc_id, data in items:
+                if doc_id == master_id:
+                    continue
+                    
+                # Merge status
+                dup_status = int(data.get("status", 0))
+                dup_confirmed = int(data.get("confirmed", 0))
+                
+                if dup_status == 1 or dup_confirmed == 1:
+                    if master_data.get("status") != 1:
+                        master_data["status"] = 1
+                        master_data["confirmed"] = 1
+                        updated = True
+                elif dup_status == 2 and master_data.get("status") == 0:
+                    master_data["status"] = 2
+                    master_data["confirmed"] = 0
+                    updated = True
+                    
+                # Merge reward and price (take max)
+                dup_reward = float(data.get("reward", 0.0))
+                dup_price = float(data.get("product_price", 0.0))
+                
+                if dup_reward > float(master_data.get("reward", 0.0)):
+                    master_data["reward"] = dup_reward
+                    updated = True
+                if dup_price > float(master_data.get("product_price", 0.0)):
+                    master_data["product_price"] = dup_price
+                    updated = True
+                    
+                # Merge campaign / advertiser info
+                dup_camp = str(data.get("campaign_id", ""))
+                if dup_camp and len(dup_camp) > len(str(master_data.get("campaign_id", ""))):
+                    if not any(x in dup_camp.lower() for x in ["3501", "cashback"]):
+                        master_data["campaign_id"] = dup_camp
+                        updated = True
+                
+                # Merge utm_medium
+                dup_medium = str(data.get("utm_medium", ""))
+                if dup_medium and len(dup_medium) > len(str(master_data.get("utm_medium", ""))):
+                    master_data["utm_medium"] = dup_medium
+                    updated = True
+                    
+                # Merge utm_source (email)
+                dup_email = str(data.get("utm_source", ""))
+                if "@" in dup_email and "@" not in str(master_data.get("utm_source", "")):
+                    master_data["utm_source"] = dup_email
+                    updated = True
+                    
+                docs_to_delete.append(doc_id)
+                
+            # If master was updated, write back
+            if updated:
+                orders_ref.document(master_id).set(master_data, merge=True)
+                
+            # Delete duplicates
+            for doc_id in docs_to_delete:
+                orders_ref.document(doc_id).delete()
+                print(f"Cleanup: deleted duplicate order doc {doc_id}")
+                
+    except Exception as e:
+        print(f"Error during order cleanup: {e}")
+
 @router.get("/api/admin/at-reports")
 @limiter.limit("30/minute")
 def admin_reports(request: Request):
@@ -42,6 +144,9 @@ def admin_reports(request: Request):
     # Trả về cache nếu chưa quá 10 phút (600 giây)
     if ADMIN_REPORTS_CACHE["data"] is not None and now - ADMIN_REPORTS_CACHE["last_updated"] < 600:
         return ADMIN_REPORTS_CACHE["data"]
+        
+    # Tự động dọn dẹp các đơn hàng trùng lặp trước khi thống kê
+    cleanup_database_duplicates(db)
         
     orders = [
         doc.to_dict()
@@ -648,12 +753,9 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
             # Reconstruct sub_id for utm_content logging
             sub_id = "-".join(sub_id_vals)
             
-            raw_tx_id = get_val("transaction_id")
-            if raw_tx_id:
-                transaction_id = str(raw_tx_id).strip()
-            else:
-                transaction_id = f"{utm_medium}_{order_id}"
-
+            # Search for existing documents with the same order_id
+            existing_docs = list(db.collection("orders").where("order_id", "==", order_id).stream())
+            
             sales_time = get_val("sales_time")
             if sales_time:
                 if hasattr(sales_time, "strftime"):
@@ -663,22 +765,40 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
             else:
                 sales_time_str = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
-            db.collection("orders").document(transaction_id).set({
-                "transaction_id": transaction_id,
-                "order_id": order_id,
-                "campaign_id": campaign_id,
-                "product_id": "",
-                "quantity": 1,
-                "product_price": product_price,
-                "reward": reward,
-                "sales_time": sales_time_str,
-                "status": status_code,
-                "confirmed": confirmed,
-                "utm_source": email,
-                "utm_content": sub_id,
-                "utm_medium": utm_medium,
-                "created_at": firestore.SERVER_TIMESTAMP
-            }, merge=True)
+            if existing_docs:
+                for doc in existing_docs:
+                    db.collection("orders").document(doc.id).set({
+                        "status": status_code,
+                        "confirmed": confirmed,
+                        "product_price": product_price if product_price > 0 else doc.to_dict().get("product_price", 0.0),
+                        "reward": reward if reward > 0 else doc.to_dict().get("reward", 0.0),
+                        "utm_source": email if email else doc.to_dict().get("utm_source", ""),
+                        "campaign_id": campaign_id if campaign_id != "Shopee" else doc.to_dict().get("campaign_id", "Shopee"),
+                        "utm_medium": utm_medium if utm_medium != "shopee" else doc.to_dict().get("utm_medium", "shopee"),
+                    }, merge=True)
+            else:
+                raw_tx_id = get_val("transaction_id")
+                if raw_tx_id:
+                    transaction_id = str(raw_tx_id).strip()
+                else:
+                    transaction_id = f"{utm_medium}_{order_id}"
+
+                db.collection("orders").document(transaction_id).set({
+                    "transaction_id": transaction_id,
+                    "order_id": order_id,
+                    "campaign_id": campaign_id,
+                    "product_id": "",
+                    "quantity": 1,
+                    "product_price": product_price,
+                    "reward": reward,
+                    "sales_time": sales_time_str,
+                    "status": status_code,
+                    "confirmed": confirmed,
+                    "utm_source": email,
+                    "utm_content": sub_id,
+                    "utm_medium": utm_medium,
+                    "created_at": firestore.SERVER_TIMESTAMP
+                }, merge=True)
             
             success_count += 1
         except Exception as e:
