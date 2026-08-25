@@ -474,9 +474,10 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
     if header_row is None:
         raise HTTPException(status_code=400, detail="Không tìm thấy dòng tiêu đề hợp lệ trong file báo cáo. Vui lòng kiểm tra lại file báo cáo của Shopee.")
         
+    import unicodedata
     col_map = {"sub_ids": []}
     for idx, name in enumerate(headers):
-        name_lower = name.lower().strip()
+        name_lower = unicodedata.normalize("NFC", str(name or "")).lower().strip()
         
         # Match order_id (ID đơn hàng / Mã đơn hàng)
         if any(x in name_lower for x in ["mã đơn hàng", "ma don hang", "order id", "order_id", "id đơn hàng", "id don hang", "id đơn", "id don", "mã đơn", "ma don"]):
