@@ -30,6 +30,12 @@ ADMIN_REPORTS_CACHE = {
     "last_updated": 0
 }
 
+# Khởi tạo bộ nhớ đệm cho danh sách thành viên đăng ký và ví
+ADMIN_USERS_CACHE = {
+    "data": None,
+    "last_updated": 0
+}
+
 def cleanup_database_duplicates(db):
     try:
         orders_ref = db.collection("orders")
@@ -277,8 +283,9 @@ def update_withdrawal(request: Request, body: WithdrawalUpdate):
     })
     
     # Xóa cache báo cáo để cập nhật lại số liệu mới
-    global ADMIN_REPORTS_CACHE
+    global ADMIN_REPORTS_CACHE, ADMIN_USERS_CACHE
     ADMIN_REPORTS_CACHE["last_updated"] = 0
+    ADMIN_USERS_CACHE["last_updated"] = 0
     
     # Reset cả cache bảng xếp hạng bên user
     try:
@@ -383,6 +390,14 @@ def get_registered_users(request: Request):
     """Admin lấy toàn bộ danh sách thành viên đăng ký kèm số dư ví"""
     verify_admin(request)
     
+    global ADMIN_USERS_CACHE
+    import time
+    now = time.time()
+    
+    # Trả về cache nếu chưa quá 10 phút (600 giây)
+    if ADMIN_USERS_CACHE["data"] is not None and now - ADMIN_USERS_CACHE["last_updated"] < 600:
+        return ADMIN_USERS_CACHE["data"]
+        
     # 1. Lấy toàn bộ danh sách users
     users_docs = db.collection("users").stream()
     users_list = []
@@ -466,7 +481,12 @@ def get_registered_users(request: Request):
         })
         
     result.sort(key=lambda x: x["createdAt"], reverse=True)
-    return {"success": True, "data": result}
+    
+    response_data = {"success": True, "data": result}
+    ADMIN_USERS_CACHE["data"] = response_data
+    ADMIN_USERS_CACHE["last_updated"] = now
+    
+    return response_data
 
 @router.post("/api/admin/sync-users")
 @limiter.limit("5/minute")
@@ -806,8 +826,9 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
             skipped_count += 1
             
     # Reset cache báo cáo Admin và bảng xếp hạng khi import thành công
-    global ADMIN_REPORTS_CACHE
+    global ADMIN_REPORTS_CACHE, ADMIN_USERS_CACHE
     ADMIN_REPORTS_CACHE["last_updated"] = 0
+    ADMIN_USERS_CACHE["last_updated"] = 0
     try:
         from routes.user import LEADERBOARD_CACHE
         LEADERBOARD_CACHE["last_updated"] = 0
