@@ -529,6 +529,17 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
             if not row_vals or all(val is None or str(val).strip() == "" for val in row_vals):
                 continue
                 
+            # Sửa lỗi tách cột do dấu phẩy ở cột Mã danh mục ("bonus,xxxxx") của AccessTrade
+            cat_header_idx = None
+            for idx, h in enumerate(headers):
+                if "danh mục" in h.lower() or "danh muc" in h.lower():
+                    cat_header_idx = idx
+                    break
+            if cat_header_idx is not None and len(row_vals) > len(headers):
+                diff = len(row_vals) - len(headers)
+                merged_val = ",".join(str(row_vals[i]) if row_vals[i] is not None else "" for i in range(cat_header_idx, cat_header_idx + diff + 1))
+                row_vals = row_vals[:cat_header_idx] + [merged_val] + row_vals[cat_header_idx + diff + 1:]
+
             def get_val(col_name, default=None):
                 idx = col_map.get(col_name)
                 if idx is not None and idx < len(row_vals):
@@ -547,7 +558,10 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
             confirmed = 0
             status_code = 0
             
-            if any(x in status_str for x in ["hoàn thành", "thành công", "completed", "đã hoàn thành", "được duyệt", "duyệt", "approved"]):
+            if "pre approved" in status_str or "pre_approved" in status_str or "tạm" in status_str or "chờ" in status_str:
+                confirmed = 0
+                status_code = 0
+            elif any(x in status_str for x in ["hoàn thành", "thành công", "completed", "đã hoàn thành", "được duyệt", "duyệt", "approved"]):
                 confirmed = 1
                 status_code = 1
             elif any(x in status_str for x in ["hủy", "cancelled", "không thành công", "đã hủy", "bị hủy", "rejected", "reject"]):
