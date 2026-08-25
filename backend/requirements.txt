@@ -6,3 +6,4 @@ requests
 slowapi
 python-multipart
 openpyxl
+google-api-core==2.34.0
