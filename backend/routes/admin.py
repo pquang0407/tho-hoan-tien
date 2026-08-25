@@ -1013,8 +1013,9 @@ def sync_lazada_orders(request: Request, days: int = 7):
             break
 
     # Reset cache báo cáo Admin và bảng xếp hạng khi đồng bộ thành công
-    global ADMIN_REPORTS_CACHE
+    global ADMIN_REPORTS_CACHE, ADMIN_USERS_CACHE
     ADMIN_REPORTS_CACHE["last_updated"] = 0
+    ADMIN_USERS_CACHE["last_updated"] = 0
     try:
         from routes.user import LEADERBOARD_CACHE
         LEADERBOARD_CACHE["last_updated"] = 0
