@@ -41,6 +41,26 @@ def cleanup_database_duplicates(db):
         orders_ref = db.collection("orders")
         docs = list(orders_ref.stream())
         
+        # Auto-correct invalid or empty campaign_id for all orders
+        for doc in docs:
+            data = doc.to_dict()
+            camp = data.get("campaign_id")
+            medium = str(data.get("utm_medium", "")).lower()
+            
+            corrected = None
+            if not camp or str(camp).strip().lower() in ["", "none", "null"]:
+                if "shopee" in medium:
+                    corrected = "Shopee"
+                elif "tiktok" in medium:
+                    corrected = "TikTok Shop"
+                elif "lazada" in medium:
+                    corrected = "Lazada"
+            
+            if corrected:
+                orders_ref.document(doc.id).update({"campaign_id": corrected})
+                data["campaign_id"] = corrected  # Update local dict in case it's used in grouping/merge
+                print(f"Auto-corrected empty campaign_id for doc {doc.id} to {corrected}")
+
         # Group by order_id
         order_groups = {}
         for doc in docs:
@@ -710,23 +730,26 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
             product_price = parse_float(get_val("product_price"))
             
             # Dynamic Advertiser / Campaign detection
-            raw_campaign = get_val("advertiser", "Shopee")
-            campaign_id = str(raw_campaign).strip()
+            raw_campaign = get_val("advertiser")
+            campaign_id = str(raw_campaign).strip() if raw_campaign else "Shopee"
+            if campaign_id.lower() == "none":
+                campaign_id = "Shopee"
             camp_lower = campaign_id.lower()
             
             if "tiktok" in camp_lower:
                 utm_medium = "tiktok"
                 # Keep original or map to TikTok Shop
-                if campaign_id == "Shopee" or not campaign_id:
+                if campaign_id == "Shopee" or not raw_campaign:
                     campaign_id = "TikTok Shop"
             elif "lazada" in camp_lower:
                 utm_medium = "lazada"
-                if campaign_id == "Shopee" or not campaign_id:
+                if campaign_id == "Shopee" or not raw_campaign:
                     campaign_id = "Lazada"
             elif "shopee" in camp_lower:
                 utm_medium = "shopee"
             else:
                 utm_medium = "shopee"
+                campaign_id = "Shopee"
 
             # Extract sub_ids values and search for email containing _at_
             sub_id_vals = []
