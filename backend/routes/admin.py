@@ -543,6 +543,16 @@ def sync_users(request: Request):
             total += 1
         page = page.get_next_page()
 
+    # Reset cache sau khi đồng bộ thành viên mới thành công
+    global ADMIN_REPORTS_CACHE, ADMIN_USERS_CACHE
+    ADMIN_REPORTS_CACHE["last_updated"] = 0
+    ADMIN_USERS_CACHE["last_updated"] = 0
+    try:
+        from routes.user import LEADERBOARD_CACHE
+        LEADERBOARD_CACHE["last_updated"] = 0
+    except Exception:
+        pass
+
     return {
         "success": True,
         "synced": total
