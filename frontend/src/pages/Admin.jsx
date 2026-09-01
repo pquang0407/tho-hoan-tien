@@ -94,7 +94,7 @@ const Admin = ({ user }) => {
     const [orderStartDate, setOrderStartDate] = useState("");
     const [orderEndDate, setOrderEndDate] = useState("");
 
-    const formatMoney = (val) => Number(val || 0).toLocaleString("vi-VN") + " đ";
+    const formatMoney = (val) => Math.round(Number(val || 0)).toLocaleString("vi-VN") + " đ";
 
     const getPlatformName = (campaign) => {
         if (!campaign) return "Khác";
