@@ -407,7 +407,7 @@ def get_admin_users(request: Request, start_date: str = None, end_date: str = No
 @router.get("/api/admin/registered-users")
 @limiter.limit("30/minute")
 def get_registered_users(request: Request):
-    """Admin lấy toàn bộ danh sách thành viên đăng ký kèm số dư ví"""
+    """Admin lấy toàn bộ danh sách thành viên đăng ký (bao gồm cả tài khoản ví ảo Zalo Bot) kèm số dư ví"""
     verify_admin(request)
     
     global ADMIN_USERS_CACHE
@@ -418,34 +418,46 @@ def get_registered_users(request: Request):
     if ADMIN_USERS_CACHE["data"] is not None and now - ADMIN_USERS_CACHE["last_updated"] < 600:
         return ADMIN_USERS_CACHE["data"]
         
-    # 1. Lấy toàn bộ danh sách users
+    # 1. Lấy toàn bộ danh sách users từ collection "users"
     users_docs = db.collection("users").stream()
     users_list = []
+    registered_emails = set()
+    
     for doc in users_docs:
-        users_list.append(doc.to_dict())
+        u = doc.to_dict()
+        users_list.append(u)
+        email = u.get("email", "").strip().lower()
+        if email:
+            registered_emails.add(email)
+            registered_emails.add(email.replace("-", "_"))
+            registered_emails.add(email.replace("_", "-"))
         
     # 2. Lấy toàn bộ đơn hàng để tính toán hoa hồng chéo (gộp theo email)
     orders_docs = db.collection("orders").stream()
     user_approved_cashback = defaultdict(float)
     user_pending_cashback = defaultdict(float)
+    all_activity_emails = set()
     
     for doc in orders_docs:
         order = doc.to_dict()
         email = order.get("utm_source")
         if not email:
             continue
+        email_clean = str(email).strip().lower()
+        all_activity_emails.add(email_clean)
+        
         confirmed = int(order.get("confirmed", 0))
         status = int(order.get("status", 0))
         reward = float(order.get("reward", 0))
         
         # Lấy tỷ lệ chia của user
-        u_ratio, _, _ = get_user_ratios(email)
+        u_ratio, _, _ = get_user_ratios(email_clean)
         cashback = reward * u_ratio
         
         if confirmed == 1:
-            user_approved_cashback[email] += cashback
+            user_approved_cashback[email_clean] += cashback
         elif status != 2:
-            user_pending_cashback[email] += cashback
+            user_pending_cashback[email_clean] += cashback
             
     # 3. Lấy toàn bộ withdrawals để tính toán rút tiền
     withdrawals_docs = db.collection("withdrawals").stream()
@@ -457,35 +469,87 @@ def get_registered_users(request: Request):
         email = w.get("user_email")
         if not email:
             continue
+        email_clean = str(email).strip().lower()
+        all_activity_emails.add(email_clean)
+        
         status = w.get("status")
         amount = float(w.get("amount", 0))
         
         if status == "approved":
-            user_approved_withdraw[email] += amount
+            user_approved_withdraw[email_clean] += amount
         elif status == "pending":
-            user_pending_withdraw[email] += amount
+            user_pending_withdraw[email_clean] += amount
+
+    # Quét thêm collection conversions để lấy các email Zalo Bot vừa mới tạo link (dù chưa có đơn)
+    try:
+        conversions_docs = db.collection("conversions").stream()
+        for doc in conversions_docs:
+            c = doc.to_dict()
+            e = c.get("user_email")
+            if e:
+                all_activity_emails.add(str(e).strip().lower())
+    except Exception as e:
+        print(f"Error streaming conversions for users: {e}")
+
+    # Bổ sung các ví ảo Zalo Bot chưa nằm trong collection "users"
+    added_virtual_emails = set()
+    for act_email in all_activity_emails:
+        if act_email not in registered_emails:
+            # Kiểm tra tránh trùng lặp giữa 2 dạng - và _ của chính ví ảo đó
+            canonical_key = act_email.replace("-", "_")
+            if canonical_key in added_virtual_emails:
+                continue
+            added_virtual_emails.add(canonical_key)
             
-    # 4. Gom dữ liệu trả về
+            name_part = act_email.split("@")[0]
+            display_name = name_part
+            if name_part.startswith("zalo_") or name_part.startswith("zalo-"):
+                display_name = f"Zalo: {name_part[5:]}"
+                
+            users_list.append({
+                "email": act_email,
+                "displayName": display_name,
+                "photoURL": "",
+                "createdAt": "Tài khoản Zalo Bot",
+                "provider": "Zalo Bot"
+            })
+            registered_emails.add(act_email)
+            registered_emails.add(act_email.replace("-", "_"))
+            registered_emails.add(act_email.replace("_", "-"))
+
+    # 4. Gom dữ liệu trả về và gộp hoa hồng theo tất cả biến thể email (- và _)
     result = []
+    processed_result_emails = set()
+    
     for u in users_list:
-        email = u.get("email", "")
+        email = u.get("email", "").strip()
         if not email:
             continue
+            
+        canonical_key = email.lower().replace("-", "_")
+        if canonical_key in processed_result_emails:
+            continue
+        processed_result_emails.add(canonical_key)
             
         created_time = ""
         created_at_ms = u.get("createdAt")
         if created_at_ms:
-            try:
-                created_time = datetime.fromtimestamp(created_at_ms / 1000, tz=timezone.utc)
-                created_time = (created_time + timedelta(hours=7)).strftime("%d/%m/%Y %H:%M")
-            except:
+            if isinstance(created_at_ms, (int, float)):
+                try:
+                    created_time = datetime.fromtimestamp(created_at_ms / 1000, tz=timezone.utc)
+                    created_time = (created_time + timedelta(hours=7)).strftime("%d/%m/%Y %H:%M")
+                except:
+                    created_time = str(created_at_ms)
+            else:
                 created_time = str(created_at_ms)
                 
-        # Tính toán khả dụng
-        approved = user_approved_cashback.get(email, 0.0)
-        app_withdraw = user_approved_withdraw.get(email, 0.0)
-        pend_withdraw = user_pending_withdraw.get(email, 0.0)
-        pending = user_pending_cashback.get(email, 0.0)
+        # Tính toán khả dụng gộp cả 2 biến thể email (- và _)
+        variants = list(set([email.lower(), email.lower().replace("-", "_"), email.lower().replace("_", "-")]))
+        
+        approved = sum(user_approved_cashback.get(v, 0.0) for v in variants)
+        pending = sum(user_pending_cashback.get(v, 0.0) for v in variants)
+        app_withdraw = sum(user_approved_withdraw.get(v, 0.0) for v in variants)
+        pend_withdraw = sum(user_pending_withdraw.get(v, 0.0) for v in variants)
         
         available_balance = max(approved - app_withdraw - pend_withdraw, 0.0)
         
@@ -500,7 +564,7 @@ def get_registered_users(request: Request):
             "withdrawn": round(app_withdraw)
         })
         
-    result.sort(key=lambda x: x["createdAt"], reverse=True)
+    result.sort(key=lambda x: str(x.get("createdAt", "")), reverse=True)
     
     response_data = {"success": True, "data": result}
     ADMIN_USERS_CACHE["data"] = response_data

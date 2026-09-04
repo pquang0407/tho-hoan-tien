@@ -57,11 +57,34 @@ class WithdrawalRequest(BaseModel):
     amount: float
     bank_info: str
 
+def get_email_variants(email: str) -> list:
+    if not email:
+        return []
+    e_clean = email.strip().lower()
+    variants = [e_clean]
+    if "@" in e_clean:
+        username, domain = e_clean.split("@", 1)
+        v1 = f"{username.replace('-', '_')}@{domain}"
+        v2 = f"{username.replace('_', '-')}@{domain}"
+        if v1 not in variants:
+            variants.append(v1)
+        if v2 not in variants:
+            variants.append(v2)
+    else:
+        v1 = e_clean.replace('-', '_')
+        v2 = e_clean.replace('_', '-')
+        if v1 not in variants:
+            variants.append(v1)
+        if v2 not in variants:
+            variants.append(v2)
+    return variants
+
 @router.get("/api/user/wallet")
 @limiter.limit("30/minute")
 def get_user_wallet(email: str, request: Request):
+    variants = get_email_variants(email)
     orders = db.collection("orders") \
-        .where("utm_source", "==", email) \
+        .where("utm_source", "in", variants) \
         .stream()
 
     total_approved = 0
@@ -81,7 +104,7 @@ def get_user_wallet(email: str, request: Request):
     approved_withdraw = sum(
         d.to_dict().get("amount", 0)
         for d in db.collection("withdrawals")
-        .where("user_email", "==", email)
+        .where("user_email", "in", variants)
         .where("status", "==", "approved")
         .stream()
     )
@@ -89,7 +112,7 @@ def get_user_wallet(email: str, request: Request):
     pending_withdraw = sum(
         d.to_dict().get("amount", 0)
         for d in db.collection("withdrawals")
-        .where("user_email", "==", email)
+        .where("user_email", "in", variants)
         .where("status", "==", "pending")
         .stream()
     )
@@ -403,10 +426,11 @@ async def convert_link(request: Request, body: LinkRequest):
 @limiter.limit("30/minute") 
 async def create_withdrawal(request: Request, body: WithdrawalRequest):
     wallet = get_user_wallet(body.user_email, request)
+    variants = get_email_variants(body.user_email)
     
     pending_request = db.collection("withdrawals")\
-        .where("user_email","==",body.user_email)\
-        .where("status","==","pending")\
+        .where("user_email", "in", variants)\
+        .where("status", "==", "pending")\
         .stream()
     
     pending_amount = sum(w.to_dict()["amount"] for w in pending_request)
@@ -430,7 +454,8 @@ async def create_withdrawal(request: Request, body: WithdrawalRequest):
 @router.get("/api/user/withdrawals/history")
 @limiter.limit("30/minute")
 def get_user_withdrawals_history(email: str, request: Request):
-    docs = db.collection("withdrawals").where("user_email", "==", email).stream()
+    variants = get_email_variants(email)
+    docs = db.collection("withdrawals").where("user_email", "in", variants).stream()
     
     result = []
     for doc in docs:
@@ -468,16 +493,17 @@ def get_user_withdrawals_history(email: str, request: Request):
 @router.get("/api/user/history")
 @limiter.limit("30/minute")
 def get_user_history(email: str, request: Request):
+    variants = get_email_variants(email)
     orders = db.collection("orders")\
-        .where("utm_source","==",email)\
+        .where("utm_source", "in", variants)\
         .stream()
     result = []
     for doc in orders:
         order = doc.to_dict()
-        if order.get("utm_source") != email:
+        if order.get("utm_source") not in variants:
             continue
         u_ratio, _, _ = get_user_ratios(email)
-        cashback = float(order["reward"]) * u_ratio
+        cashback = float(order.get("reward", 0)) * u_ratio
         if order.get("confirmed") == 1:
             status = "approved"
         elif order.get("status") == 2:
@@ -485,14 +511,14 @@ def get_user_history(email: str, request: Request):
         else:
             status = "pending"
         result.append({
-            "order_id": order["order_id"],
+            "order_id": order.get("order_id", ""),
             "merchant": order.get("campaign_id"),
             "amount": order.get("product_price", 0),
             "cashback": round(cashback),
             "status": status,
             "time": order.get("sales_time")
         })
-    result.sort(key=lambda x: x["time"], reverse=True)
+    result.sort(key=lambda x: x["time"] if x.get("time") else "", reverse=True)
     return {"success": True, "orders": result}
 
 LEADERBOARD_CACHE = {
