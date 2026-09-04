@@ -23,6 +23,7 @@ from config.settings import (
     REQUEST_TIMEOUT,
     ECOMOBI_TOKEN
 )
+from routes.redirect import SHORT_URL_CACHE
 from middleware.auth import get_user_ratios
 from utils.shortener import generate_short_code
 from utils.url_cleaner import clean_shopee_url, clean_lazada_url
@@ -74,9 +75,20 @@ def get_email_variants(email: str) -> list:
         variants.add(e_clean.replace("_", "-"))
     return list(variants)
 
+USER_WALLETS_CACHE = {}
+USER_HISTORY_CACHE = {}
+
 @router.get("/api/user/wallet")
 @limiter.limit("30/minute")
 def get_user_wallet(email: str, request: Request):
+    import time
+    now = time.time()
+    email_clean = email.strip().lower() if email else ""
+    if email_clean in USER_WALLETS_CACHE:
+        cached = USER_WALLETS_CACHE[email_clean]
+        if now - cached["last_updated"] < 180:
+            return cached["data"]
+
     variants = get_email_variants(email)
     orders = db.collection("orders") \
         .where("utm_source", "in", variants) \
@@ -116,12 +128,15 @@ def get_user_wallet(email: str, request: Request):
         total_approved - approved_withdraw - pending_withdraw,
         0
     )
-    return {
+    res_data = {
         "success": True,
         "balance": round(available),
         "pending": round(total_pending),
         "withdrawn": round(approved_withdraw)
     }
+    if email_clean:
+        USER_WALLETS_CACHE[email_clean] = {"data": res_data, "last_updated": now}
+    return res_data
 
 @router.post("/api/convert")
 @limiter.limit("30/minute") 
@@ -202,6 +217,7 @@ async def convert_link(request: Request, body: LinkRequest):
             "long_url": aff_link,
             "created_at": firestore.SERVER_TIMESTAMP
         })
+        SHORT_URL_CACHE[short_code] = aff_link
         short_link = f"https://tiktok.{BASE_DOMAIN}/{short_code}"
         
         product_name = data["product_name"]
@@ -257,6 +273,7 @@ async def convert_link(request: Request, body: LinkRequest):
             "long_url": aff_link,
             "created_at": firestore.SERVER_TIMESTAMP
         })
+        SHORT_URL_CACHE[short_code] = aff_link
         short_link = f"https://shopee.{BASE_DOMAIN}/{short_code}"
 
         u_ratio, a_ratio, c_percent = get_user_ratios(body.user_email)
@@ -328,6 +345,7 @@ async def convert_link(request: Request, body: LinkRequest):
             "long_url": aff_link,
             "created_at": firestore.SERVER_TIMESTAMP
         })
+        SHORT_URL_CACHE[short_code] = aff_link
         short_link = f"https://lazada.{BASE_DOMAIN}/{short_code}"
 
         # 4. Gọi tiếp API /marketing/product/feed để lấy ảnh thật và giá bán thật của sản phẩm
@@ -444,6 +462,11 @@ async def create_withdrawal(request: Request, body: WithdrawalRequest):
         "balance_at_request": wallet["balance"],
         "created_at": firestore.SERVER_TIMESTAMP
     })
+
+    # Xóa cache ví của người dùng để cập nhật ngay
+    email_clean = body.user_email.strip().lower() if body.user_email else ""
+    USER_WALLETS_CACHE.pop(email_clean, None)
+    USER_HISTORY_CACHE.pop(email_clean, None)
     return {"success": True, "message": "Yêu cầu rút tiền đã được gửi thành công!"}
 
 @router.get("/api/user/withdrawals/history")
@@ -488,6 +511,14 @@ def get_user_withdrawals_history(email: str, request: Request):
 @router.get("/api/user/history")
 @limiter.limit("30/minute")
 def get_user_history(email: str, request: Request):
+    import time
+    now = time.time()
+    email_clean = email.strip().lower() if email else ""
+    if email_clean in USER_HISTORY_CACHE:
+        cached = USER_HISTORY_CACHE[email_clean]
+        if now - cached["last_updated"] < 180:
+            return cached["data"]
+
     variants = get_email_variants(email)
     orders = db.collection("orders")\
         .where("utm_source", "in", variants)\
@@ -514,7 +545,10 @@ def get_user_history(email: str, request: Request):
             "time": order.get("sales_time")
         })
     result.sort(key=lambda x: x["time"] if x.get("time") else "", reverse=True)
-    return {"success": True, "orders": result}
+    res_data = {"success": True, "orders": result}
+    if email_clean:
+        USER_HISTORY_CACHE[email_clean] = {"data": res_data, "last_updated": now}
+    return res_data
 
 LEADERBOARD_CACHE = {
     "ranking": None,
@@ -549,8 +583,9 @@ def leaderboard():
         u_ratio, _, _ = get_user_ratios(email)
         ranking[email] += reward * u_ratio
 
+    sorted_emails = sorted(ranking.items(), key=lambda x: x[1], reverse=True)[:10]
     result = []
-    for email, total in ranking.items():
+    for email, total in sorted_emails:
         user_doc = db.collection("users").document(email).get()
         avatar = ""
         name = email.split("@")[0]
@@ -568,8 +603,7 @@ def leaderboard():
             "cashback": round(total)
         })
 
-    result.sort(key=lambda x: x["cashback"], reverse=True)
-    top_ten = result[:10]
+    top_ten = result
     
     # Lưu vào bộ nhớ đệm
     LEADERBOARD_CACHE["ranking"] = top_ten

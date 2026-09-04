@@ -36,6 +36,18 @@ ADMIN_USERS_CACHE = {
     "last_updated": 0
 }
 
+def invalidate_all_caches():
+    global ADMIN_REPORTS_CACHE, ADMIN_USERS_CACHE
+    ADMIN_REPORTS_CACHE["last_updated"] = 0
+    ADMIN_USERS_CACHE["last_updated"] = 0
+    try:
+        from routes.user import LEADERBOARD_CACHE, USER_WALLETS_CACHE, USER_HISTORY_CACHE
+        LEADERBOARD_CACHE["last_updated"] = 0
+        USER_WALLETS_CACHE.clear()
+        USER_HISTORY_CACHE.clear()
+    except Exception:
+        pass
+
 def cleanup_database_duplicates(db):
     try:
         orders_ref = db.collection("orders")
@@ -302,18 +314,8 @@ def update_withdrawal(request: Request, body: WithdrawalUpdate):
         "updated_at": datetime.now()
     })
     
-    # Xóa cache báo cáo để cập nhật lại số liệu mới
-    global ADMIN_REPORTS_CACHE, ADMIN_USERS_CACHE
-    ADMIN_REPORTS_CACHE["last_updated"] = 0
-    ADMIN_USERS_CACHE["last_updated"] = 0
-    
-    # Reset cả cache bảng xếp hạng bên user
-    try:
-        from routes.user import LEADERBOARD_CACHE
-        LEADERBOARD_CACHE["last_updated"] = 0
-    except:
-        pass
-        
+    # Xóa toàn bộ cache để cập nhật lại số liệu mới cho cả admin và user
+    invalidate_all_caches()
     return {"success": True, "message": "Cập nhật trạng thái thành công"}
 
 @router.get("/api/admin/users")
@@ -609,14 +611,7 @@ def sync_users(request: Request):
         page = page.get_next_page()
 
     # Reset cache sau khi đồng bộ thành viên mới thành công
-    global ADMIN_REPORTS_CACHE, ADMIN_USERS_CACHE
-    ADMIN_REPORTS_CACHE["last_updated"] = 0
-    ADMIN_USERS_CACHE["last_updated"] = 0
-    try:
-        from routes.user import LEADERBOARD_CACHE
-        LEADERBOARD_CACHE["last_updated"] = 0
-    except Exception:
-        pass
+    invalidate_all_caches()
 
     return {
         "success": True,
