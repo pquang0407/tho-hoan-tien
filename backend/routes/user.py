@@ -61,23 +61,18 @@ def get_email_variants(email: str) -> list:
     if not email:
         return []
     e_clean = email.strip().lower()
-    variants = [e_clean]
+    variants = set([e_clean])
     if "@" in e_clean:
         username, domain = e_clean.split("@", 1)
-        v1 = f"{username.replace('-', '_')}@{domain}"
-        v2 = f"{username.replace('_', '-')}@{domain}"
-        if v1 not in variants:
-            variants.append(v1)
-        if v2 not in variants:
-            variants.append(v2)
+        u_vars = [username, username.replace("-", "_"), username.replace("_", "-")]
+        d_vars = [domain, domain.replace("-", "."), domain.replace(".", "-"), domain.replace("_", ".")]
+        for u in u_vars:
+            for d in d_vars:
+                variants.add(f"{u}@{d}")
     else:
-        v1 = e_clean.replace('-', '_')
-        v2 = e_clean.replace('_', '-')
-        if v1 not in variants:
-            variants.append(v1)
-        if v2 not in variants:
-            variants.append(v2)
-    return variants
+        variants.add(e_clean.replace("-", "_"))
+        variants.add(e_clean.replace("_", "-"))
+    return list(variants)
 
 @router.get("/api/user/wallet")
 @limiter.limit("30/minute")

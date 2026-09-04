@@ -543,8 +543,9 @@ def get_registered_users(request: Request):
             else:
                 created_time = str(created_at_ms)
                 
-        # Tính toán khả dụng gộp cả 2 biến thể email (- và _)
-        variants = list(set([email.lower(), email.lower().replace("-", "_"), email.lower().replace("_", "-")]))
+        # Tính toán khả dụng gộp tất cả biến thể email (- , _ , domain)
+        from routes.user import get_email_variants
+        variants = get_email_variants(email)
         
         approved = sum(user_approved_cashback.get(v, 0.0) for v in variants)
         pending = sum(user_pending_cashback.get(v, 0.0) for v in variants)
