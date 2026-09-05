@@ -77,6 +77,7 @@ def get_email_variants(email: str) -> list:
 
 USER_WALLETS_CACHE = {}
 USER_HISTORY_CACHE = {}
+USER_WITHDRAWALS_HISTORY_CACHE = {}
 
 @router.get("/api/user/wallet")
 @limiter.limit("30/minute")
@@ -472,6 +473,14 @@ async def create_withdrawal(request: Request, body: WithdrawalRequest):
 @router.get("/api/user/withdrawals/history")
 @limiter.limit("30/minute")
 def get_user_withdrawals_history(email: str, request: Request):
+    import time
+    now = time.time()
+    email_clean = email.strip().lower() if email else ""
+    if email_clean in USER_WITHDRAWALS_HISTORY_CACHE:
+        cached = USER_WITHDRAWALS_HISTORY_CACHE[email_clean]
+        if now - cached["last_updated"] < 180:
+            return cached["data"]
+
     variants = get_email_variants(email)
     docs = db.collection("withdrawals").where("user_email", "in", variants).stream()
     
@@ -506,7 +515,10 @@ def get_user_withdrawals_history(email: str, request: Request):
     for r in result:
         del r["time_val"]
         
-    return {"success": True, "data": result}
+    res_data = {"success": True, "data": result}
+    if email_clean:
+        USER_WITHDRAWALS_HISTORY_CACHE[email_clean] = {"data": res_data, "last_updated": now}
+    return res_data
 
 @router.get("/api/user/history")
 @limiter.limit("30/minute")

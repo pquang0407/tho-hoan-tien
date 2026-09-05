@@ -36,15 +36,30 @@ ADMIN_USERS_CACHE = {
     "last_updated": 0
 }
 
+ADMIN_WITHDRAWALS_CACHE = {
+    "data": None,
+    "last_updated": 0
+}
+
+ADMIN_USERS_ACTIVITY_CACHE = {
+    "data": None,
+    "last_updated": 0,
+    "start_date": None,
+    "end_date": None
+}
+
 def invalidate_all_caches():
-    global ADMIN_REPORTS_CACHE, ADMIN_USERS_CACHE
+    global ADMIN_REPORTS_CACHE, ADMIN_USERS_CACHE, ADMIN_WITHDRAWALS_CACHE, ADMIN_USERS_ACTIVITY_CACHE
     ADMIN_REPORTS_CACHE["last_updated"] = 0
     ADMIN_USERS_CACHE["last_updated"] = 0
+    ADMIN_WITHDRAWALS_CACHE["last_updated"] = 0
+    ADMIN_USERS_ACTIVITY_CACHE["last_updated"] = 0
     try:
-        from routes.user import LEADERBOARD_CACHE, USER_WALLETS_CACHE, USER_HISTORY_CACHE
+        from routes.user import LEADERBOARD_CACHE, USER_WALLETS_CACHE, USER_HISTORY_CACHE, USER_WITHDRAWALS_HISTORY_CACHE
         LEADERBOARD_CACHE["last_updated"] = 0
         USER_WALLETS_CACHE.clear()
         USER_HISTORY_CACHE.clear()
+        USER_WITHDRAWALS_HISTORY_CACHE.clear()
     except Exception:
         pass
 
@@ -278,6 +293,13 @@ def admin_reports(request: Request):
 def get_withdrawals(request: Request):
     """Admin lấy danh sách yêu cầu rút tiền"""
     verify_admin(request)
+    import time
+    now = time.time()
+
+    global ADMIN_WITHDRAWALS_CACHE
+    if ADMIN_WITHDRAWALS_CACHE["data"] is not None and now - ADMIN_WITHDRAWALS_CACHE["last_updated"] < 600:
+        return ADMIN_WITHDRAWALS_CACHE["data"]
+
     docs = db.collection("withdrawals").order_by("created_at", direction=firestore.Query.DESCENDING).stream()
     
     result = []
@@ -297,7 +319,10 @@ def get_withdrawals(request: Request):
             "status": data.get("status", "pending"),
             "date": created_time
         })
-    return {"success": True, "data": result}
+    res_data = {"success": True, "data": result}
+    ADMIN_WITHDRAWALS_CACHE["data"] = res_data
+    ADMIN_WITHDRAWALS_CACHE["last_updated"] = now
+    return res_data
 
 @router.post("/api/admin/withdrawals/update")
 @limiter.limit("30/minute")
@@ -323,7 +348,16 @@ def update_withdrawal(request: Request, body: WithdrawalUpdate):
 def get_admin_users(request: Request, start_date: str = None, end_date: str = None):
     """Admin lấy danh sách chi tiết hành vi người dùng có lọc theo ngày chuẩn xác"""
     verify_admin(request)
-    
+    import time
+    now = time.time()
+
+    global ADMIN_USERS_ACTIVITY_CACHE
+    if (ADMIN_USERS_ACTIVITY_CACHE["data"] is not None and 
+        now - ADMIN_USERS_ACTIVITY_CACHE["last_updated"] < 600 and
+        ADMIN_USERS_ACTIVITY_CACHE.get("start_date") == start_date and
+        ADMIN_USERS_ACTIVITY_CACHE.get("end_date") == end_date):
+        return ADMIN_USERS_ACTIVITY_CACHE["data"]
+
     query = db.collection("conversions")
     start_d = None
     end_d = None
@@ -335,6 +369,11 @@ def get_admin_users(request: Request, start_date: str = None, end_date: str = No
             query = query.where("created_at", ">=", start_dt)
         except Exception:
             pass
+    else:
+        # Mặc định lọc 30 ngày gần nhất để giảm tối đa lượt đọc Firestore
+        thirty_days_ago_dt = datetime.now(timezone.utc) - timedelta(days=30)
+        query = query.where("created_at", ">=", thirty_days_ago_dt)
+
     if end_date:
         try:
             end_d = datetime.strptime(end_date, "%Y-%m-%d").date()
@@ -404,7 +443,12 @@ def get_admin_users(request: Request, start_date: str = None, end_date: str = No
             })
             
     result.sort(key=lambda x: x["total_links"], reverse=True)
-    return {"success": True, "data": result}
+    res_data = {"success": True, "data": result}
+    ADMIN_USERS_ACTIVITY_CACHE["data"] = res_data
+    ADMIN_USERS_ACTIVITY_CACHE["last_updated"] = now
+    ADMIN_USERS_ACTIVITY_CACHE["start_date"] = start_date
+    ADMIN_USERS_ACTIVITY_CACHE["end_date"] = end_date
+    return res_data
 
 @router.get("/api/admin/registered-users")
 @limiter.limit("30/minute")
