@@ -78,7 +78,7 @@ const History = ({ user }) => {
                                         {Math.round(parseFloat(order.amount || 0)).toLocaleString("vi-VN")}đ
                                     </td>
                                     <td className={`amount-col-cashback ${order.status === 'rejected' ? 'rejected-amount' : ''}`}>
-                                        {order.status === 'rejected' ? '' : '+'}{Math.round(parseFloat(order.cashback || 0)).toLocaleString("vi-VN")}đ
+                                        {order.status === 'rejected' ? '' : '+'}{Math.round(parseFloat(order.cashback || 0)).toLocaleString("vi-VN")} 🥕
                                     </td>
                                     <td>
                                         <span className={`status-badge ${order.status === 'pending' ? 'waiting' : order.status === 'approved' ? 'approved' : 'rejected'}`}>

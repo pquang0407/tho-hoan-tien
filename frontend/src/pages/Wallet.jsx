@@ -60,17 +60,17 @@ const Wallet = ({ user }) => {
 
     const handleWithdraw = async () => {
         const val = parseFloat(amount);
-        if (!amount || isNaN(val)) return alert("Vui lòng nhập số tiền hợp lệ!");
-        if (val < 30000) return alert("Số tiền rút tối thiểu là 30.000đ");
-        if (val > balance) return alert("Số dư khả dụng không đủ. Vui lòng đợi các đơn hàng chờ duyệt được hoàn tất.");
-        if (!bankName || !accountNumber || !accountHolder) return alert("Vui lòng điền đầy đủ thông tin ngân hàng");
+        if (!amount || isNaN(val)) return alert("Vui lòng nhập số Cà Rốt hợp lệ!");
+        if (val < 30000) return alert("Số Cà Rốt quy đổi tối thiểu là 30.000 Cà Rốt");
+        if (val > balance) return alert("Số dư Cà Rốt khả dụng không đủ. Vui lòng đợi các đơn hàng chờ duyệt được hoàn tất.");
+        if (!bankName || !accountNumber || !accountHolder) return alert("Vui lòng điền đầy đủ thông tin nhận quà");
 
-        const isConfirm = window.confirm(`Bạn có chắc chắn muốn rút ${val.toLocaleString("vi-VN")}đ về tài khoản ${bankName} không?`);
+        const isConfirm = window.confirm(`Bạn có chắc chắn muốn quy đổi ${val.toLocaleString("vi-VN")} Cà Rốt sang voucher/quà nhận qua ${bankName} không?`);
         if (!isConfirm) return;
 
-        alert("Yêu cầu rút tiền đang được xử lý, Thỏ đang thực hiện chuyển khoản cho bạn 🐰🥕");
+        alert("Yêu cầu quy đổi đang được xử lý, Thỏ đang chuẩn bị quà cho bạn 🐰🥕");
 
-        const fullBankInfo = `${bankName} - STK: ${accountNumber} - CTK: ${accountHolder}`;
+        const fullBankInfo = `${bankName} - STK/SĐT: ${accountNumber} - Người nhận: ${accountHolder}`;
         const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
         try {
@@ -100,36 +100,36 @@ const Wallet = ({ user }) => {
 
     return (
         <div className="wallet-page fade-in">
-            <h1 className="page-title">🎁 Ví Điểm & Quà Tặng Tích Lũy</h1>
+            <h1 className="page-title">🎁 Ví Cà Rốt & Quà Tặng Tích Lũy</h1>
 
             {/* Stats Row Bento Card Container */}
             <div className="wallet-stats-grid">
                 {/* Pending balance card */}
                 <div className="wallet-stat-card card-pending">
                     <div className="stat-card-title">⏳ Đang chờ duyệt</div>
-                    <h2 className="stat-card-value text-amber">{pending.toLocaleString("vi-VN")}đ</h2>
-                    <p className="stat-card-desc">Điểm thưởng tạm tính từ đơn hàng mới phát sinh. Chờ đối soát từ sàn TMĐT.</p>
+                    <h2 className="stat-card-value text-amber">{pending.toLocaleString("vi-VN")} 🥕</h2>
+                    <p className="stat-card-desc">Cà Rốt tạm tính từ đơn hàng mới phát sinh. Chờ đối soát từ sàn TMĐT.</p>
                 </div>
 
                 {/* Available balance card */}
                 <div className="wallet-stat-card card-available">
-                    <div className="stat-card-title text-white-opacity">✅ Số dư khả dụng</div>
-                    <h2 className="stat-card-value text-white">{balance.toLocaleString("vi-VN")}đ</h2>
+                    <div className="stat-card-title text-white-opacity">✅ Cà Rốt khả dụng</div>
+                    <h2 className="stat-card-value text-white">{balance.toLocaleString("vi-VN")} 🥕</h2>
                     <div className="progress-bar-container-new">
                         <div className="progress-bar-fill-new" style={{ width: `${progress}%` }}></div>
                     </div>
                     <p className="stat-card-desc text-white-opacity-soft">
                         {balance < 30000 
-                            ? `Cần thêm ${(30000 - balance).toLocaleString("vi-VN")}đ nữa để đổi quà/voucher (Tối thiểu 30.000đ)` 
+                            ? `Cần thêm ${(30000 - balance).toLocaleString("vi-VN")} Cà Rốt nữa để đổi quà/voucher (Tối thiểu 30.000 Cà Rốt)` 
                             : "Đã đạt hạn mức tối thiểu! Bạn có thể gửi yêu cầu đổi quà/voucher ngay."}
                     </p>
                 </div>
 
                 {/* Total withdrawn card */}
                 <div className="wallet-stat-card card-withdrawn">
-                    <div className="stat-card-title">🎁 Tổng đã đổi quà</div>
-                    <h2 className="stat-card-value text-blue">{withdrawn.toLocaleString("vi-VN")}đ</h2>
-                    <p className="stat-card-desc">Tổng số điểm thưởng tích lũy bạn đã thực hiện quy đổi thành công.</p>
+                    <div className="stat-card-title">🎁 Tổng Cà Rốt đã đổi</div>
+                    <h2 className="stat-card-value text-blue">{withdrawn.toLocaleString("vi-VN")} 🥕</h2>
+                    <p className="stat-card-desc">Tổng số Cà Rốt tích lũy bạn đã thực hiện quy đổi thành công.</p>
                 </div>
             </div>
 
@@ -139,10 +139,10 @@ const Wallet = ({ user }) => {
                     <h3 className="withdrawal-form-title">Tạo yêu cầu quy đổi voucher & quà</h3>
                     <div className="withdrawal-form-inputs">
                         <div className="form-group-item">
-                            <label className="input-label-styled">Số điểm/tiền quy đổi</label>
+                            <label className="input-label-styled">Số Cà Rốt quy đổi</label>
                             <input 
                                 type="number" 
-                                placeholder="Số tiền (VND, tối thiểu 30.000đ)" 
+                                placeholder="Số Cà Rốt (Tối thiểu 30.000 Cà Rốt)" 
                                 value={amount} 
                                 onChange={(e) => setAmount(e.target.value)} 
                                 className="styled-input-field"
@@ -158,7 +158,7 @@ const Wallet = ({ user }) => {
                             </div>
                         </div>
                         <div className="form-group-item">
-                            <label className="input-label-styled">Số tài khoản / SĐT nhận</label>
+                            <label className="input-label-styled">Số tài khoản / SĐT nhận quà</label>
                             <input 
                                 type="text" 
                                 placeholder="Nhập số tài khoản / SĐT" 
@@ -168,7 +168,7 @@ const Wallet = ({ user }) => {
                             />
                         </div>
                         <div className="form-group-item">
-                            <label className="input-label-styled">Tên người nhận</label>
+                            <label className="input-label-styled">Tên người nhận quà</label>
                             <input 
                                 type="text" 
                                 placeholder="VIET HOA KHONG DAU (Ví dụ: NGUYEN VAN A)" 
@@ -193,8 +193,8 @@ const Wallet = ({ user }) => {
                         <thead>
                             <tr>
                                 <th>Thời gian</th>
-                                <th>Số tiền rút</th>
-                                <th>Ngân hàng nhận</th>
+                                <th>Số Cà Rốt đổi</th>
+                                <th>Phương thức nhận</th>
                                 <th>Trạng thái</th>
                             </tr>
                         </thead>
@@ -202,7 +202,7 @@ const Wallet = ({ user }) => {
                             {withdrawHistory.map((w, i) => (
                                 <tr key={i} className="history-table-row">
                                     <td className="time-col">{w.date}</td>
-                                    <td className="amount-col">{w.amount.toLocaleString("vi-VN")}đ</td>
+                                    <td className="amount-col">{w.amount.toLocaleString("vi-VN")} 🥕</td>
                                     <td className="bank-col">{w.bank}</td>
                                     <td>
                                         <span className={`status-badge ${w.status === 'pending' ? 'waiting' : w.status === 'approved' ? 'approved' : 'rejected'}`}>

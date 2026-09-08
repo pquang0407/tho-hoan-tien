@@ -216,7 +216,7 @@ const Dashboard = ({ user }) => {
                                 {result.product.is_estimated_price ? (
                                     <>
                                         <div className="estimate-amount highlight-gradient-text">
-                                            ≈ {Number(result.commission.cashback || 0).toLocaleString("vi-VN")} đ
+                                            ≈ {Number(result.commission.cashback || 0).toLocaleString("vi-VN")} 🥕
                                         </div>
                                         <div className="original-price" style={{ color: "#e67e22", marginTop: "4px", fontSize: "0.85rem" }}>
                                             ⚠️ Tạm tính (Đơn hàng 150k). Ưu đãi thực tế tính trên đơn hàng thực mua.
@@ -225,7 +225,7 @@ const Dashboard = ({ user }) => {
                                 ) : (
                                     <>
                                         <div className="estimate-amount highlight-gradient-text">
-                                            ≈ {Number(result.commission.cashback || 0).toLocaleString("vi-VN")} đ
+                                            ≈ {Number(result.commission.cashback || 0).toLocaleString("vi-VN")} 🥕
                                         </div>
                                         <div className="original-price">
                                             Giá bán trên sàn: {Number(result.product.price || 0).toLocaleString("vi-VN")}đ
