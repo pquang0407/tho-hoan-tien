@@ -149,10 +149,10 @@ const Wallet = ({ user }) => {
                             />
                         </div>
                         <div className="form-group-item">
-                            <label className="input-label-styled">Chọn ngân hàng / phương thức nhận</label>
+                            <label className="input-label-styled">Hình thức nhận thưởng / quà</label>
                             <div className="select-wrapper-custom">
                                 <select className="wallet-select" onChange={(e) => setBankName(e.target.value)} value={bankName}>
-                                    <option value="">-- Chọn ngân hàng / ví --</option>
+                                    <option value="">-- Chọn hình thức nhận thưởng --</option>
                                     {banks.map(b => <option key={b} value={b}>{b}</option>)}
                                 </select>
                             </div>
@@ -207,8 +207,8 @@ const Wallet = ({ user }) => {
                                     <td>
                                         <span className={`status-badge ${w.status === 'pending' ? 'waiting' : w.status === 'approved' ? 'approved' : 'rejected'}`}>
                                             <span className="badge-glow-dot"></span>
-                                            {w.status === "pending" && "Đang chờ duyệt"}
-                                            {w.status === "approved" && "Đã chuyển khoản"}
+                                            {w.status === "pending" && "Đang xử lý"}
+                                            {w.status === "approved" && "Đã trao quà"}
                                             {w.status === "rejected" && "Bị từ chối"}
                                         </span>
                                     </td>
