@@ -44,8 +44,8 @@ const History = ({ user }) => {
 
     return (
         <div className="history-page fade-in">
-            <h1 className="page-title">📜 Lịch sử hoàn tiền</h1>
-            <p className="page-subtitle">Theo dõi các đơn hàng và tiến độ đối soát hoa hồng của bạn</p>
+            <h1 className="page-title">📜 Lịch sử săn deal</h1>
+            <p className="page-subtitle">Theo dõi các đơn hàng và tiến độ đối soát tích điểm ưu đãi của bạn</p>
 
             <div className="history-card-section">
                 <div className="history-table-wrapper-responsive">
@@ -56,7 +56,7 @@ const History = ({ user }) => {
                                 <th>Ngày mua</th>
                                 <th>Nền tảng</th>
                                 <th>Giá trị đơn</th>
-                                <th>Hoa hồng</th>
+                                <th>Ưu đãi tích lũy</th>
                                 <th>Trạng thái</th>
                             </tr>
                         </thead>
@@ -96,7 +96,7 @@ const History = ({ user }) => {
                                     <td colSpan="6" className="empty-history-cell">
                                         <div className="empty-history-view">
                                             <span className="empty-icon-bunny">🐰</span>
-                                            <p>Bạn chưa có giao dịch hoàn tiền nào được ghi nhận.</p>
+                                            <p>Bạn chưa có giao dịch săn deal nào được ghi nhận.</p>
                                         </div>
                                     </td>
                                 </tr>

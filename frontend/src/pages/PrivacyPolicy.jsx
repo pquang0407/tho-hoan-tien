@@ -26,41 +26,41 @@ const PrivacyPolicy = () => {
             <div className="policy-content">
                 <h1 className="policy-title">Chính sách bảo mật</h1>
                 <p className="policy-subtitle">
-                    Cập nhật lần cuối: 27/04/2026. Chính sách này mô tả cách Thỏ Hoàn Tiền thu thập, sử dụng và bảo vệ dữ liệu cá nhân khi người dùng sử dụng website, thực hiện liên kết Google và nhận thông báo giao dịch.
+                    Cập nhật lần cuối: 27/04/2026. Chính sách này mô tả cách Thỏ Săn Deal thu thập, sử dụng và bảo vệ dữ liệu cá nhân khi người dùng sử dụng website, thực hiện liên kết Google và nhận thông báo giao dịch.
                 </p>
 
                 <div className="policy-card-item">
                     <h3 className="policy-card-title">1. Mục đích của ứng dụng</h3>
                     <p className="policy-card-text">
-                        Thỏ Hoàn Tiền là nền tảng hỗ trợ người dùng chuyển đổi các đường dẫn mua sắm (Shopee, Lazada, TikTok Shop) thành liên kết tiếp thị liên kết (affiliate). Hệ thống ghi nhận đơn hàng, đối soát hoa hồng và tự động tích lũy số dư để hoàn lại phần lớn tiền hoa hồng cho người đặt mua.
+                        Thỏ Săn Deal là nền tảng hỗ trợ người dùng chuyển đổi các đường dẫn mua sắm (Shopee, Lazada, TikTok Shop) thành liên kết tiếp thị liên kết (affiliate). Hệ thống ghi nhận đơn hàng, đối soát và tích lũy ưu đãi cho người đặt mua.
                     </p>
                 </div>
 
                 <div className="policy-card-item">
                     <h3 className="policy-card-title">2. Dữ liệu thu thập</h3>
                     <p className="policy-card-text">
-                        Chúng tôi thu thập email, tên hiển thị, hình ảnh đại diện Google khi bạn đăng ký/đăng nhập. Ngoài ra, hệ thống lưu giữ lịch sử tạo link rút gọn, đơn hàng phát sinh, số dư tích lũy khả dụng, tổng số tiền đã rút và thông tin tài khoản ngân hàng để thực hiện đối soát và chi trả phần thưởng.
+                        Chúng tôi thu thập email, tên hiển thị, hình ảnh đại diện Google khi bạn đăng ký/đăng nhập. Ngoài ra, hệ thống lưu giữ lịch sử tạo link rút gọn, đơn hàng phát sinh, số dư tích lũy khả dụng và thông tin tài khoản để thực hiện đối soát và chi trả phần thưởng.
                     </p>
                 </div>
 
                 <div className="policy-card-item">
                     <h3 className="policy-card-title">3. Cách sử dụng thông tin</h3>
                     <p className="policy-card-text">
-                        Dữ liệu thu thập được sử dụng để xác thực tài khoản, ghi nhận và đồng bộ các đơn hàng hoàn tiền từ AccessTrade, kiểm soát tính minh bạch của số dư, xử lý các yêu cầu rút tiền về ngân hàng của thành viên và hỗ trợ kỹ thuật khi gặp sự cố đơn hàng.
+                        Dữ liệu thu thập được sử dụng để xác thực tài khoản, ghi nhận và đồng bộ các đơn hàng săn deal, kiểm soát tính minh bạch của số dư, xử lý các yêu cầu quy đổi ưu đãi của thành viên và hỗ trợ kỹ thuật khi gặp sự cố đơn hàng.
                     </p>
                 </div>
 
                 <div className="policy-card-item">
                     <h3 className="policy-card-title">4. Cam kết bảo mật & Chia sẻ dữ liệu</h3>
                     <p className="policy-card-text">
-                        Chúng tôi cam kết <strong>KHÔNG</strong> bán, cho thuê hoặc chia sẻ dữ liệu cá nhân của bạn cho bên thứ ba vì mục đích thương mại. Thông tin chỉ được chuyển đến đối tác affiliate (AccessTrade/Sàn TMĐT) nhằm đối soát khớp đơn hàng hoàn tiền và các cơ quan pháp luật khi có yêu cầu chính thức.
+                        Chúng tôi cam kết <strong>KHÔNG</strong> bán, cho thuê hoặc chia sẻ dữ liệu cá nhân của bạn cho bên thứ ba vì mục đích thương mại. Thông tin chỉ được chuyển đến đối tác affiliate (AccessTrade/Sàn TMĐT) nhằm đối soát khớp đơn hàng và các cơ quan pháp luật khi có yêu cầu chính thức.
                     </p>
                 </div>
 
                 <div className="policy-card-item">
                     <h3 className="policy-card-title">5. Lưu trữ và Xóa dữ liệu</h3>
                     <p className="policy-card-text">
-                        Thông tin của bạn được lưu trữ an toàn trên hệ thống cơ sở dữ liệu Firestore của Google Firebase. Người dùng có quyền yêu cầu trích xuất thông tin hoặc xóa vĩnh viễn tài khoản cá nhân cùng các dữ liệu liên quan bằng cách gửi yêu cầu hỗ trợ qua các kênh chính thức của Thỏ Hoàn Tiền.
+                        Thông tin của bạn được lưu trữ an toàn trên hệ thống cơ sở dữ liệu Firestore của Google Firebase. Người dùng có quyền yêu cầu trích xuất thông tin hoặc xóa vĩnh viễn tài khoản cá nhân cùng các dữ liệu liên quan bằng cách gửi yêu cầu hỗ trợ qua các kênh chính thức của Thỏ Săn Deal.
                     </p>
                 </div>
 

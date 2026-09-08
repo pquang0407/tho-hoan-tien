@@ -114,13 +114,13 @@ const Dashboard = ({ user }) => {
                         <span>Trang Chủ</span>
                     </button>
                 </div>
-                <h1 className="page-title-main">Chuyển đổi link hoàn tiền ✨</h1>
+                <h1 className="page-title-main">Chuyển đổi link săn deal ✨</h1>
             </div>
 
             {/* Inspirational Quote Card */}
             <div className="quote-box">
-                <p>“Vẫn mua sắm trên các sàn bạn thích, chỉ thêm một bước nhỏ qua hang Thỏ để rinh về khoản hoa hồng tích lũy cực lớn từ mỗi đơn hàng.”</p>
-                <span className="quote-author">Thỏ Hoàn Tiền 🐰</span>
+                <p>“Vẫn mua sắm trên các sàn bạn thích, chỉ thêm một bước nhỏ qua Thỏ Săn Deal để rinh về mã giảm giá & quà tặng hấp dẫn từ mỗi đơn hàng.”</p>
+                <span className="quote-author">Thỏ Săn Deal 🐰</span>
             </div>
 
             {/* Platform Selection Tabs */}
@@ -171,7 +171,7 @@ const Dashboard = ({ user }) => {
                         onClick={handleConvert}
                         disabled={isConverting || !linkInput}
                     >
-                        {isConverting ? 'Thỏ đang nhai link...' : '✨ Tạo link hoàn tiền'}
+                        {isConverting ? 'Thỏ đang nhai link...' : '✨ Tạo link săn deal'}
                     </button>
                 </div>
             </div>
@@ -194,7 +194,7 @@ const Dashboard = ({ user }) => {
                     <div className="result-card">
                         <div className="success-status">
                             <CheckCircleIcon />
-                            <span>ĐÃ GẮN MÃ HOÀN TIỀN THÀNH CÔNG</span>
+                            <span>ĐÃ GẮN MÃ ƯU ĐÃI THÀNH CÔNG</span>
                         </div>
 
                         <div className="product-info">
@@ -212,14 +212,14 @@ const Dashboard = ({ user }) => {
                         {/* Cashback Estimation details */}
                         <div className="cashback-estimate">
                             <div className="estimate-left">
-                                <span className="estimate-label">Hoa hồng tích lũy ước tính ⓘ</span>
+                                <span className="estimate-label">Ưu đãi tích lũy ước tính ⓘ</span>
                                 {result.product.is_estimated_price ? (
                                     <>
                                         <div className="estimate-amount highlight-gradient-text">
                                             ≈ {Number(result.commission.cashback || 0).toLocaleString("vi-VN")} đ
                                         </div>
                                         <div className="original-price" style={{ color: "#e67e22", marginTop: "4px", fontSize: "0.85rem" }}>
-                                            ⚠️ Tạm tính (Đơn hàng 150k). Hoa hồng thực tế tính trên đơn hàng thực mua.
+                                            ⚠️ Tạm tính (Đơn hàng 150k). Ưu đãi thực tế tính trên đơn hàng thực mua.
                                         </div>
                                     </>
                                 ) : (
@@ -237,9 +237,9 @@ const Dashboard = ({ user }) => {
 
                         {/* Terms and conditions info */}
                         <div className="cashback-note">
-                            <b>Lưu ý từ Hang Thỏ 🐾</b>
+                            <b>Lưu ý từ Thỏ Săn Deal 🐾</b>
                             <p>
-                                Số tiền hoàn bên trên là mức <strong>ước tính tối đa</strong>. Số tiền tích lũy thực tế nhận được có thể thay đổi tùy thuộc vào ngành hàng, ưu đãi của sàn, và việc bạn có áp dụng mã giảm giá khác lúc thanh toán hay không.
+                                Số điểm/ưu đãi bên trên là mức <strong>ước tính tối đa</strong>. Số điểm tích lũy thực tế nhận được có thể thay đổi tùy thuộc vào ngành hàng, ưu đãi của sàn, và việc bạn có áp dụng mã giảm giá khác lúc thanh toán hay không.
                             </p>
                         </div>
 

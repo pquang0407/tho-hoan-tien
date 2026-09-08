@@ -100,7 +100,7 @@ const Wallet = ({ user }) => {
 
     return (
         <div className="wallet-page fade-in">
-            <h1 className="page-title">💰 Ví Tiền Hoàn Tích Lũy</h1>
+            <h1 className="page-title">🎁 Ví Điểm & Quà Tặng Tích Lũy</h1>
 
             {/* Stats Row Bento Card Container */}
             <div className="wallet-stats-grid">
@@ -108,7 +108,7 @@ const Wallet = ({ user }) => {
                 <div className="wallet-stat-card card-pending">
                     <div className="stat-card-title">⏳ Đang chờ duyệt</div>
                     <h2 className="stat-card-value text-amber">{pending.toLocaleString("vi-VN")}đ</h2>
-                    <p className="stat-card-desc">Tiền hoa hồng tạm tính từ đơn hàng mới phát sinh. Chờ đối soát từ sàn TMĐT.</p>
+                    <p className="stat-card-desc">Điểm thưởng tạm tính từ đơn hàng mới phát sinh. Chờ đối soát từ sàn TMĐT.</p>
                 </div>
 
                 {/* Available balance card */}
@@ -120,26 +120,26 @@ const Wallet = ({ user }) => {
                     </div>
                     <p className="stat-card-desc text-white-opacity-soft">
                         {balance < 30000 
-                            ? `Cần thêm ${(30000 - balance).toLocaleString("vi-VN")}đ nữa để rút tiền (Tối thiểu 30.000đ)` 
-                            : "Đã đạt hạn mức tối thiểu! Bạn có thể rút tiền ngay."}
+                            ? `Cần thêm ${(30000 - balance).toLocaleString("vi-VN")}đ nữa để đổi quà/voucher (Tối thiểu 30.000đ)` 
+                            : "Đã đạt hạn mức tối thiểu! Bạn có thể gửi yêu cầu đổi quà/voucher ngay."}
                     </p>
                 </div>
 
                 {/* Total withdrawn card */}
                 <div className="wallet-stat-card card-withdrawn">
-                    <div className="stat-card-title">💸 Tổng đã rút</div>
+                    <div className="stat-card-title">🎁 Tổng đã đổi quà</div>
                     <h2 className="stat-card-value text-blue">{withdrawn.toLocaleString("vi-VN")}đ</h2>
-                    <p className="stat-card-desc">Tổng số tiền hoàn tích lũy bạn đã thực hiện rút thành công về tài khoản.</p>
+                    <p className="stat-card-desc">Tổng số điểm thưởng tích lũy bạn đã thực hiện quy đổi thành công.</p>
                 </div>
             </div>
 
             {/* Form Section Container */}
             <div className="wallet-grid-layout">
                 <div className="withdrawal-form-card">
-                    <h3 className="withdrawal-form-title">Tạo yêu cầu rút tiền</h3>
+                    <h3 className="withdrawal-form-title">Tạo yêu cầu quy đổi voucher & quà</h3>
                     <div className="withdrawal-form-inputs">
                         <div className="form-group-item">
-                            <label className="input-label-styled">Số tiền cần rút</label>
+                            <label className="input-label-styled">Số điểm/tiền quy đổi</label>
                             <input 
                                 type="number" 
                                 placeholder="Số tiền (VND, tối thiểu 30.000đ)" 
@@ -149,26 +149,26 @@ const Wallet = ({ user }) => {
                             />
                         </div>
                         <div className="form-group-item">
-                            <label className="input-label-styled">Chọn ngân hàng nhận</label>
+                            <label className="input-label-styled">Chọn ngân hàng / phương thức nhận</label>
                             <div className="select-wrapper-custom">
                                 <select className="wallet-select" onChange={(e) => setBankName(e.target.value)} value={bankName}>
-                                    <option value="">-- Chọn ngân hàng --</option>
+                                    <option value="">-- Chọn ngân hàng / ví --</option>
                                     {banks.map(b => <option key={b} value={b}>{b}</option>)}
                                 </select>
                             </div>
                         </div>
                         <div className="form-group-item">
-                            <label className="input-label-styled">Số tài khoản</label>
+                            <label className="input-label-styled">Số tài khoản / SĐT nhận</label>
                             <input 
                                 type="text" 
-                                placeholder="Nhập số tài khoản ngân hàng" 
+                                placeholder="Nhập số tài khoản / SĐT" 
                                 value={accountNumber} 
                                 onChange={(e) => setAccountNumber(e.target.value)} 
                                 className="styled-input-field"
                             />
                         </div>
                         <div className="form-group-item">
-                            <label className="input-label-styled">Tên chủ tài khoản</label>
+                            <label className="input-label-styled">Tên người nhận</label>
                             <input 
                                 type="text" 
                                 placeholder="VIET HOA KHONG DAU (Ví dụ: NGUYEN VAN A)" 
@@ -180,14 +180,14 @@ const Wallet = ({ user }) => {
                     </div>
                     <button className="btn-bubbly-primary full-width-btn" onClick={handleWithdraw}>
                         <ArrowUpRightIcon />
-                        <span>Gửi yêu cầu rút tiền</span>
+                        <span>Gửi yêu cầu quy đổi quà</span>
                     </button>
                 </div>
             </div>
 
             {/* History Table Container */}
             <div className="wallet-history-section mt-40">
-                <h3 className="history-section-title">📜 Lịch sử rút tiền</h3>
+                <h3 className="history-section-title">📜 Lịch sử quy đổi voucher & quà</h3>
                 <div className="history-table-wrapper-responsive">
                     <table className="premium-history-table">
                         <thead>

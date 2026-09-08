@@ -45,8 +45,8 @@ const Login = () => {
                 <div className="login-brand">
                     <span className="brand-icon-bunny floating">🐰</span>
                     <div className="brand-text">
-                        <strong>Thỏ Hoàn Tiền</strong>
-                        <span>Tích lũy cà rốt từ mỗi đơn hàng</span>
+                        <strong>Thỏ Săn Deal</strong>
+                        <span>Săn deal & voucher từ mỗi đơn hàng</span>
                     </div>
                 </div>
 
@@ -56,8 +56,8 @@ const Login = () => {
                 </div>
 
                 <div className="login-quote floating-slow">
-                    <p>“Cộng hưởng từ những đơn hàng nhỏ nhất, Thỏ giúp bạn thu lại phần hoa hồng xứng đáng để mua sắm thông thái hơn mỗi ngày.”</p>
-                    <span className="quote-author">Thỏ Hoàn Tiền 🐰</span>
+                    <p>“Cộng hưởng từ những đơn hàng nhỏ nhất, Thỏ giúp bạn thu lại phần ưu đãi xứng đáng để mua sắm thông thái hơn mỗi ngày.”</p>
+                    <span className="quote-author">Thỏ Săn Deal 🐰</span>
                 </div>
             </div>
 
@@ -72,14 +72,14 @@ const Login = () => {
 
                 <div className="login-card slide-up">
                     <div className="login-header">
-                        <h2>Đăng Nhập Hang Thỏ 🌸</h2>
+                        <h2>Đăng Nhập Thỏ Săn Deal 🌸</h2>
                         <p>Vui lòng đọc điều khoản sử dụng bên dưới để bắt đầu.</p>
                     </div>
 
                     {/* --- SCROLLABLE PRIVACY POLICY WIDGET --- */}
                     <div className={`policy-scroll-box ${hasScrolledToBottom ? 'scrolled' : ''}`} onScroll={handleScroll}>
-                        <strong>Chính sách điều khoản Thỏ Hoàn Tiền</strong>
-                        <p>1. <b>Mục đích hoạt động:</b> Thỏ Hoàn Tiền hỗ trợ tích hợp link affiliate cá nhân để đối soát đơn hàng và chia sẻ hoàn tiền chiết khấu.</p>
+                        <strong>Chính sách điều khoản Thỏ Săn Deal</strong>
+                        <p>1. <b>Mục đích hoạt động:</b> Thỏ Săn Deal hỗ trợ tích hợp link affiliate cá nhân để đối soát đơn hàng và săn mã giảm giá / voucher.</p>
                         <p>2. <b>Bảo mật thông tin:</b> Chúng tôi lưu email và lịch sử tạo link. Cam kết KHÔNG chia sẻ dữ liệu cho bên thứ ba ngoài việc đối soát hoa hồng.</p>
                         <p>3. <b>Thời gian đối soát:</b> Hoa hồng mua sắm hiển thị là mức ước tính, sẽ được sàn TMĐT phê duyệt chính thức sau 30-45 ngày.</p>
                         <p>4. <b>Chống gian lận:</b> Nghiêm cấm các hành vi đặt đơn ảo, bùng hàng nhằm trục lợi. Tài khoản vi phạm sẽ bị khóa vĩnh viễn.</p>

@@ -58,7 +58,7 @@ const DashboardLayout = ({ children, user }) => {
 
                 <div className="sidebar-logo" onClick={() => navigate("/")}>
                     <span className="logo-emoji">🐰</span>
-                    <h2 className="logo-text">Thỏ Hoàn Tiền</h2>
+                    <h2 className="logo-text">Thỏ Săn Deal</h2>
                 </div>
 
                 {/* Profile hiển thị linh hoạt tùy trạng thái đăng nhập */}
@@ -109,8 +109,8 @@ const DashboardLayout = ({ children, user }) => {
                         to="/wallet"
                         className={`nav-item ${location.pathname === "/wallet" ? "active" : ""}`}
                     >
-                        <span className="nav-icon">💰</span>
-                        <span className="nav-text">Ví Tiền Hoàn</span>
+                        <span className="nav-icon">🎁</span>
+                        <span className="nav-text">Ví Ưu Đãi</span>
                     </Link>
                 </nav>
 
@@ -139,7 +139,7 @@ const DashboardLayout = ({ children, user }) => {
                 <div className="mobile-top-header">
                     <div className="mobile-logo">
                         <span className="logo-emoji">🐰</span>
-                        <strong>Thỏ Hoàn Tiền</strong>
+                        <strong>Thỏ Săn Deal</strong>
                     </div>
                     <div
                         className="mobile-avatar"
