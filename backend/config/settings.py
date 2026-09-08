@@ -10,9 +10,7 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "https://tho-hoantien.com").rstrip("/")
 parsed_domain = urlparse(FRONTEND_URL).netloc
 if parsed_domain.startswith("www."):
     parsed_domain = parsed_domain[4:]
-if not parsed_domain:
-    parsed_domain = "tho-hoantien.com"
-BASE_DOMAIN = parsed_domain
+BASE_DOMAIN = os.getenv("BASE_DOMAIN", parsed_domain or "thodeals.com")
 
 # Affiliate & Platform settings
 SHOPEE_AFFILIATE_ID = os.getenv("SHOPEE_AFFILIATE_ID")
