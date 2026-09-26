@@ -219,7 +219,7 @@ async def convert_link(request: Request, body: LinkRequest):
             "created_at": firestore.SERVER_TIMESTAMP
         })
         SHORT_URL_CACHE[short_code] = aff_link
-        short_link = f"https://tiktok.{BASE_DOMAIN}/{short_code}"
+        short_link = f"https://tk.{BASE_DOMAIN}/{short_code}"
         
         product_name = data["product_name"]
         product_image = data["product_image"]
@@ -276,7 +276,7 @@ async def convert_link(request: Request, body: LinkRequest):
             "created_at": firestore.SERVER_TIMESTAMP
         })
         SHORT_URL_CACHE[short_code] = aff_link
-        short_link = f"https://shopee.{BASE_DOMAIN}/{short_code}"
+        short_link = f"https://shp.{BASE_DOMAIN}/{short_code}"
 
         u_ratio, a_ratio, c_percent = get_user_ratios(body.user_email)
         cashback = round(commission * u_ratio)
@@ -348,7 +348,7 @@ async def convert_link(request: Request, body: LinkRequest):
             "created_at": firestore.SERVER_TIMESTAMP
         })
         SHORT_URL_CACHE[short_code] = aff_link
-        short_link = f"https://lazada.{BASE_DOMAIN}/{short_code}"
+        short_link = f"https://lz.{BASE_DOMAIN}/{short_code}"
 
         # 4. Gọi tiếp API /marketing/product/feed để lấy ảnh thật và giá bán thật của sản phẩm
         product_price = pasted_price
