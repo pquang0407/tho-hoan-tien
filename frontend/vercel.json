@@ -3,21 +3,21 @@
     {
       "source": "/:code",
       "has": [
-        { "type": "host", "value": "shopee\\..*" }
+        { "type": "host", "value": "(shp|shopee)\\..*" }
       ],
       "destination": "https://tho-hoan-tien-backend.onrender.com/thohoantien-sp/:code"
     },
     {
       "source": "/:code",
       "has": [
-        { "type": "host", "value": "tiktok\\..*" }
+        { "type": "host", "value": "(tk|tiktok)\\..*" }
       ],
       "destination": "https://tho-hoan-tien-backend.onrender.com/thohoantien-tik/:code"
     },
     {
       "source": "/:code",
       "has": [
-        { "type": "host", "value": "lazada\\..*" }
+        { "type": "host", "value": "(lz|lazada)\\..*" }
       ],
       "destination": "https://tho-hoan-tien-backend.onrender.com/thohoantien-laz/:code"
     },
