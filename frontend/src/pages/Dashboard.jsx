@@ -129,7 +129,7 @@ const Dashboard = ({ user }) => {
                     className={`tab-btn ${activeTab === 'shopee' ? 'active' : ''}`}
                     onClick={() => setActiveTab('shopee')}
                 >
-                    <span className="tab-icon">🛍️</span> Shopee
+                    <span className="tab-icon">🛍️</span> Shp
                 </button>
                 <button
                     className={`tab-btn ${activeTab === 'lazada' ? 'active' : ''}`}
