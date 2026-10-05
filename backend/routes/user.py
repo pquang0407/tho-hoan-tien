@@ -21,7 +21,8 @@ from config.settings import (
     TIKTOK_CAMPAIGN_ID,
     LAZADA_CAMPAIGN_ID,
     REQUEST_TIMEOUT,
-    ECOMOBI_TOKEN
+    ECOMOBI_TOKEN,
+    ADDLIVETAG_API_KEY
 )
 from routes.redirect import SHORT_URL_CACHE
 from middleware.auth import get_user_ratios
@@ -248,7 +249,13 @@ async def convert_link(request: Request, body: LinkRequest):
 
         try:
             data_api_url = f"https://data.addlivetag.com/product-data/product-data.php?url={quote(cleaned_url)}"
-            response_data = requests.get(data_api_url, timeout=REQUEST_TIMEOUT)
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+            if ADDLIVETAG_API_KEY:
+                headers["X-API-Key"] = ADDLIVETAG_API_KEY
+                data_api_url += f"&key={quote(ADDLIVETAG_API_KEY)}"
+            response_data = requests.get(data_api_url, headers=headers, timeout=REQUEST_TIMEOUT)
             if response_data.status_code == 200:
                 res_json = response_data.json()
                 if res_json.get("status") == "success" and res_json.get("productInfo"):
