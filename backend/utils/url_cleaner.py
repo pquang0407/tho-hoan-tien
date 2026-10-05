@@ -6,6 +6,15 @@ def clean_shopee_url(url: str) -> str:
         parsed = urlparse(url)
         netloc = parsed.netloc.lower()
         
+        # 0. Extract origin_link parameter directly if present in an_redir URL
+        if "origin_link=" in url:
+            from urllib.parse import parse_qs, unquote
+            query = parse_qs(parsed.query)
+            if "origin_link" in query:
+                url = unquote(query["origin_link"][0])
+                parsed = urlparse(url)
+                netloc = parsed.netloc.lower()
+
         # 1. Expand short link if it is shope.ee, shp.ee, s.shopee.vn, short, or live
         if any(domain in netloc for domain in ["shope.ee", "shp.ee", "s.shopee.vn", "short", "live"]):
             try:

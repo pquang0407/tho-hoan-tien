@@ -261,7 +261,7 @@ async def convert_link(request: Request, body: LinkRequest):
             print(f"Shopee Product Data API error: {e}")
 
         if not product_image:
-            product_image = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Shopee.svg/375px-Shopee.svg.png"
+            product_image = "https://cdn-icons-png.flaticon.com/512/5968/5968953.png"
 
         clean_email = body.user_email.replace("tho-hoantien", "local").replace("tho_hoantien", "local")
         sanitized_email = clean_email.replace("-", "_").replace("@", "_at_").replace(".", "_")
