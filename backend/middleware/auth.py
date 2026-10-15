@@ -5,10 +5,17 @@ from config.settings import ADMIN_EMAIL, ADMIN_EMAIL2, ADMIN_EMAIL3, user_ratio,
 def get_user_ratios(email: str):
     """
     Trả về (user_ratio, admin_ratio, cashback_percent) động theo email.
-    Đối với daonam5696@gmail.com được hưởng trọn 100% hoa hồng.
+    Các tài khoản Admin (ADMIN_EMAIL, ADMIN_EMAIL2, ADMIN_EMAIL3) được hưởng trọn 100% hoa hồng.
     """
-    if email and email.strip().lower() == "daonam5696@gmail.com":
-        return 1.0, 0.0, 100
+    if email:
+        email_clean = email.strip().lower()
+        admin_list = {
+            adm.strip().lower()
+            for adm in [ADMIN_EMAIL, ADMIN_EMAIL2, ADMIN_EMAIL3]
+            if adm
+        }
+        if email_clean in admin_list:
+            return 1.0, 0.0, 100
     return user_ratio, admin_ratio, cashback_percent
 
 def verify_admin(request: Request):
