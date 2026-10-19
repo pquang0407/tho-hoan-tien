@@ -96,7 +96,9 @@ const Dashboard = ({ user }) => {
 
     const adminEmails = [
         import.meta.env.VITE_ADMIN_EMAIL,
-        import.meta.env.VITE_ADMIN_EMAIL2
+        import.meta.env.VITE_ADMIN_EMAIL2,
+        import.meta.env.VITE_ADMIN_EMAIL3,
+        import.meta.env.VITE_ADMIN_EMAIL4
     ].filter(Boolean);
 
     const isAdmin = user && adminEmails.includes(user.email);

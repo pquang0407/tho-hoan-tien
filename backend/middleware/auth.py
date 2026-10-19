@@ -1,17 +1,17 @@
 from fastapi import Request, HTTPException
 from firebase_admin import auth as firebase_auth
-from config.settings import ADMIN_EMAIL, ADMIN_EMAIL2, ADMIN_EMAIL3, user_ratio, admin_ratio, cashback_percent
+from config.settings import ADMIN_EMAIL, ADMIN_EMAIL2, ADMIN_EMAIL3, ADMIN_EMAIL4, user_ratio, admin_ratio, cashback_percent
 
 def get_user_ratios(email: str):
     """
     Trả về (user_ratio, admin_ratio, cashback_percent) động theo email.
-    Các tài khoản Admin (ADMIN_EMAIL, ADMIN_EMAIL2, ADMIN_EMAIL3) được hưởng trọn 100% hoa hồng.
+    Các tài khoản Admin (ADMIN_EMAIL, ADMIN_EMAIL2, ADMIN_EMAIL3, ADMIN_EMAIL4) được hưởng trọn 100% hoa hồng.
     """
     if email:
         email_clean = email.strip().lower()
         admin_list = {
             adm.strip().lower()
-            for adm in [ADMIN_EMAIL, ADMIN_EMAIL2, ADMIN_EMAIL3]
+            for adm in [ADMIN_EMAIL, ADMIN_EMAIL2, ADMIN_EMAIL3, ADMIN_EMAIL4]
             if adm
         }
         if email_clean in admin_list:
@@ -33,7 +33,7 @@ def verify_admin(request: Request):
         
     email_clean = email.strip().lower()
     allowed_admins = []
-    for adm in [ADMIN_EMAIL, ADMIN_EMAIL2, ADMIN_EMAIL3]:
+    for adm in [ADMIN_EMAIL, ADMIN_EMAIL2, ADMIN_EMAIL3, ADMIN_EMAIL4]:
         if adm:
             allowed_admins.append(adm.strip().lower())
             

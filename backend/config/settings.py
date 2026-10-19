@@ -29,6 +29,7 @@ ADDLIVETAG_API_KEY = os.getenv("ADDLIVETAG_API_KEY")
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL")
 ADMIN_EMAIL2 = os.getenv("ADMIN_EMAIL2")
 ADMIN_EMAIL3 = os.getenv("ADMIN_EMAIL3")
+ADMIN_EMAIL4 = os.getenv("ADMIN_EMAIL4")
 
 # Ecomobi / Passio Tokens
 ECOMOBI_TOKEN = os.getenv("ECOMOBI_TOKEN", "TcnmZAzAGPXxZjYWXfIIi")
