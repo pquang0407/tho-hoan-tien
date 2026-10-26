@@ -7,8 +7,33 @@ import rabbit from "../assets/images/rabbit.png";
 const About = ({ user }) => {
     const navigate = useNavigate();
     const guideRef = useRef(null);
+    const [leaderboard, setLeaderboard] = useState([]);
+    const [loadingLeaderboard, setLoadingLeaderboard] = useState(true);
 
     const userEmail = user?.email;
+
+    useEffect(() => {
+        const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
+        setLoadingLeaderboard(true);
+        fetch(`${API}/api/leaderboard`)
+            .then(async (res) => {
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}`);
+                }
+                return res.json();
+            })
+            .then((data) => {
+                if (data.success) {
+                    setLeaderboard(data.data || []);
+                }
+            })
+            .catch((err) => {
+                console.error("Lỗi lấy dữ liệu bảng xếp hạng:", err);
+            })
+            .finally(() => {
+                setLoadingLeaderboard(false);
+            });
+    }, []);
 
     return (
         <div className="about-container cute-theme">
@@ -113,6 +138,123 @@ const About = ({ user }) => {
                         </div>
                     </div>
                 </div>
+            </section>
+
+            {/* --- TOP LEADERBOARD PODIUM --- */}
+            <section className="podium-section slide-up-delay-4">
+                <div className="header-center">
+                    <span className="pill-badge">🏆 Bảng vàng vinh danh</span>
+                    <h2>Những thợ săn cà rốt đỉnh nhất</h2>
+                </div>
+
+                {loadingLeaderboard ? (
+                    <div className="leaderboard-status-msg">
+                        <div className="mini-pulse-dot"></div>
+                        <span>Đang đồng bộ bảng vàng...</span>
+                    </div>
+                ) : leaderboard.length === 0 ? (
+                    <div className="leaderboard-empty-box">
+                        <span className="empty-icon">🐰</span>
+                        <p>Bảng vàng đang đợi những thợ săn đầu tiên được vinh danh!</p>
+                    </div>
+                ) : (
+                    <div className="podium-cute">
+                        {/* Hạng 2 - Silver */}
+                        {leaderboard[1] && (
+                            <div className="podium-stand silver">
+                                <div className="avatar-bubble floating-slow">
+                                    {leaderboard[1].avatar ? (
+                                        <img src={leaderboard[1].avatar} alt="avatar" />
+                                    ) : (
+                                        <span>{(leaderboard[1].name || leaderboard[1].email || "U")[0].toUpperCase()}</span>
+                                    )}
+                                </div>
+
+                                <div className="rank-badge">🥈 Á Quân</div>
+
+                                <div className="podium-info">
+                                    <strong className="podium-username">{leaderboard[1].name || leaderboard[1].email?.split('@')[0]}</strong>
+                                    <div className="money-pill">
+                                        {Number(leaderboard[1].cashback || 0).toLocaleString("vi-VN")} 🥕
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Hạng 1 - Gold */}
+                        {leaderboard[0] && (
+                            <div className="podium-stand gold center-stand">
+                                <div className="avatar-bubble giant bouncing">
+                                    {leaderboard[0].avatar ? (
+                                        <img src={leaderboard[0].avatar} alt="avatar" />
+                                    ) : (
+                                        <span>{(leaderboard[0].name || leaderboard[0].email || "U")[0].toUpperCase()}</span>
+                                    )}
+                                </div>
+
+                                <div className="rank-badge gold-badge">👑 Quán Quân</div>
+
+                                <div className="podium-info">
+                                    <strong className="podium-username gold-user">{leaderboard[0].name || leaderboard[0].email?.split('@')[0]}</strong>
+                                    <div className="money-pill highlight">
+                                        {Number(leaderboard[0].cashback || 0).toLocaleString("vi-VN")} 🥕
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Hạng 3 - Bronze */}
+                        {leaderboard[2] && (
+                            <div className="podium-stand bronze">
+                                <div className="avatar-bubble floating-slow" style={{ animationDelay: "1s" }}>
+                                    {leaderboard[2].avatar ? (
+                                        <img src={leaderboard[2].avatar} alt="avatar" />
+                                    ) : (
+                                        <span>{(leaderboard[2].name || leaderboard[2].email || "U")[0].toUpperCase()}</span>
+                                    )}
+                                </div>
+
+                                <div className="rank-badge">🥉 Quý Quân</div>
+
+                                <div className="podium-info">
+                                    <strong className="podium-username">{leaderboard[2].name || leaderboard[2].email?.split('@')[0]}</strong>
+                                    <div className="money-pill">
+                                        {Number(leaderboard[2].cashback || 0).toLocaleString("vi-VN")} 🥕
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Bảng danh sách từ Hạng 4 - Hạng 10 */}
+                {!loadingLeaderboard && leaderboard.length > 3 && (
+                    <div className="leaderboard-list slide-up-delay-1">
+                        {leaderboard.slice(3).map((player, index) => {
+                            const rankNum = index + 4;
+                            return (
+                                <div key={player.email || rankNum} className="leaderboard-row shadow-hover">
+                                    <div className="leaderboard-row-left">
+                                        <span className="leaderboard-rank-num">#{rankNum}</span>
+                                        <div className="leaderboard-row-avatar">
+                                            {player.avatar ? (
+                                                <img src={player.avatar} alt="avatar" />
+                                            ) : (
+                                                <span>{(player.name || player.email || "U")[0].toUpperCase()}</span>
+                                            )}
+                                        </div>
+                                        <span className="leaderboard-row-name">{player.name || player.email?.split('@')[0]}</span>
+                                    </div>
+                                    <div className="leaderboard-row-right">
+                                        <span className="leaderboard-row-money">
+                                            {Number(player.cashback || 0).toLocaleString("vi-VN")} 🥕
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
             </section>
 
             {/* --- CALL TO ACTION --- */}
