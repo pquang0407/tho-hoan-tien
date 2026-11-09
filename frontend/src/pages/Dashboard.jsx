@@ -246,12 +246,15 @@ const Dashboard = ({ user }) => {
                         </div>
 
                         {/* Main Call to Action buttons */}
-                        <button
+                        <a
+                            href={result.links.short}
+                            target="_blank"
+                            rel="noreferrer noopener"
                             className="btn-open-link bubbly-hover"
-                            onClick={() => window.open(result.links.short, "_blank")}
+                            style={{ display: "flex", justifyContent: "center", alignItems: "center", textDecoration: "none" }}
                         >
                             🛍️ Đi đến sàn chốt đơn ngay
-                        </button>
+                        </a>
 
                         <div className="action-footer">
                             <button

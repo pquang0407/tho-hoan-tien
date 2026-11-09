@@ -272,7 +272,24 @@ async def convert_link(request: Request, body: LinkRequest):
 
         clean_email = body.user_email.replace("tho-hoantien", "local").replace("tho_hoantien", "local")
         sanitized_email = clean_email.replace("-", "_").replace("@", "_at_").replace(".", "_")
-        sub_id = f"thodeals-{sanitized_email}"
+        
+        # Ngụy trang sub_id thành chiến dịch MXH ngẫu nhiên (Facebook Reels, TikTok...)
+        campaign_prefixes = [
+            "fbreels_video_01",
+            "fb_group_review",
+            "tiktok_bio_sale",
+            "fbr_2410_x9",
+            "fbreels_viral_02",
+            "fb_reels_hot",
+            "fbr_post24_x9",
+            "tiktok_video_review",
+            "fb_page_dealhot",
+            "fbr_trending_m1",
+            "fbreels_topdeal"
+        ]
+        chosen_prefix = random.choice(campaign_prefixes)
+        sub_id = f"{chosen_prefix}-{sanitized_email}"
+        
         encoded_url = quote(cleaned_url, safe="")
         aff_link = f"https://s.shopee.vn/an_redir?origin_link={encoded_url}&affiliate_id={SHOPEE_AFFILIATE_ID}&sub_id={sub_id}"
 
@@ -280,6 +297,8 @@ async def convert_link(request: Request, body: LinkRequest):
         short_code = generate_short_code()
         db.collection("short_urls").document(short_code).set({
             "long_url": aff_link,
+            "original_url": cleaned_url,
+            "platform": "shopee",
             "created_at": firestore.SERVER_TIMESTAMP
         })
         SHORT_URL_CACHE[short_code] = aff_link
