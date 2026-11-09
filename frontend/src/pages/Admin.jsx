@@ -522,15 +522,15 @@ const Admin = ({ user }) => {
                             <div className="kpi-card bg-kpi-pink">
                                 <div className="kpi-card-header">
                                     <span className="kpi-title">Tổng Thành Viên</span>
-                                    <div className="kpi-icon-circle pink">👤</div>
+                                    <div className="kpi-icon-circle pink">👥</div>
                                 </div>
                                 <div className="kpi-value">{summary.users || 0}</div>
-                                <div className="kpi-footer-trend">Từ Firestore Auth</div>
+                                <div className="kpi-footer-trend">Tài khoản trên hệ thống</div>
                             </div>
                             <div className="kpi-card bg-kpi-blue">
                                 <div className="kpi-card-header">
                                     <span className="kpi-title">Tổng Đơn Hàng</span>
-                                    <div className="kpi-icon-circle blue">🛒</div>
+                                    <div className="kpi-icon-circle blue">📦</div>
                                 </div>
                                 <div className="kpi-value">{summary.conversions || 0}</div>
                                 <div className="kpi-footer-trend">Đã ghi nhận trên hệ thống</div>
@@ -538,7 +538,7 @@ const Admin = ({ user }) => {
                             <div className="kpi-card bg-kpi-emerald">
                                 <div className="kpi-card-header">
                                     <span className="kpi-title">Tổng Doanh Số</span>
-                                    <div className="kpi-icon-circle emerald">💸</div>
+                                    <div className="kpi-icon-circle emerald">💰</div>
                                 </div>
                                 <div className="kpi-value">{formatMoney(summary.approved_sales)}</div>
                                 <div className="kpi-footer-trend text-emerald">Từ đơn hàng thành công</div>
@@ -546,7 +546,7 @@ const Admin = ({ user }) => {
                             <div className="kpi-card bg-kpi-purple">
                                 <div className="kpi-card-header">
                                     <span className="kpi-title">Lợi Nhuận Thỏ (30%)</span>
-                                    <div className="kpi-icon-circle purple">🐰</div>
+                                    <div className="kpi-icon-circle purple">🥕</div>
                                 </div>
                                 <div className="kpi-value highlight-pink-gradient">{formatMoney(summary.net_profit)}</div>
                                 <div className="kpi-footer-trend text-purple">Thu nhập của Nền tảng</div>
@@ -618,7 +618,9 @@ const Admin = ({ user }) => {
                                     <div className="status-progress-item">
                                         <div className="status-progress-header">
                                             <span className="status-text-lbl text-green">🟢 Đã duyệt</span>
-                                            <span className="status-count-val">{orderStatus.approved || 0} đơn</span>
+                                            <span className="status-count-val">
+                                                {orderStatus.approved || 0} đơn ({summary.conversions ? Math.round(((orderStatus.approved || 0) / summary.conversions) * 100) : 0}%)
+                                            </span>
                                         </div>
                                         <div className="progress-bar-track">
                                             <div className="progress-bar-fill bg-green" style={{ width: `${(orderStatus.approved || 0) / (summary.conversions || 1) * 100}%` }}></div>
@@ -627,7 +629,9 @@ const Admin = ({ user }) => {
                                     <div className="status-progress-item">
                                         <div className="status-progress-header">
                                             <span className="status-text-lbl text-yellow">🟡 Chờ xử lý</span>
-                                            <span className="status-count-val">{orderStatus.pending || 0} đơn</span>
+                                            <span className="status-count-val">
+                                                {orderStatus.pending || 0} đơn ({summary.conversions ? Math.round(((orderStatus.pending || 0) / summary.conversions) * 100) : 0}%)
+                                            </span>
                                         </div>
                                         <div className="progress-bar-track">
                                             <div className="progress-bar-fill bg-yellow" style={{ width: `${(orderStatus.pending || 0) / (summary.conversions || 1) * 100}%` }}></div>
@@ -636,7 +640,9 @@ const Admin = ({ user }) => {
                                     <div className="status-progress-item">
                                         <div className="status-progress-header">
                                             <span className="status-text-lbl text-red">🔴 Bị hủy</span>
-                                            <span className="status-count-val">{orderStatus.rejected || 0} đơn</span>
+                                            <span className="status-count-val">
+                                                {orderStatus.rejected || 0} đơn ({summary.conversions ? Math.round(((orderStatus.rejected || 0) / summary.conversions) * 100) : 0}%)
+                                            </span>
                                         </div>
                                         <div className="progress-bar-track">
                                             <div className="progress-bar-fill bg-red" style={{ width: `${(orderStatus.rejected || 0) / (summary.conversions || 1) * 100}%` }}></div>
@@ -649,20 +655,32 @@ const Admin = ({ user }) => {
                         {/* System Activities: Link Stats & Weekly Info */}
                         <div className="system-kpi-row mt-30">
                             <div className="system-stat-mini-card">
-                                <span className="stat-label">Tổng link rút gọn</span>
-                                <span className="stat-val">{summary.generated_links || 0}</span>
+                                <div>
+                                    <div className="stat-label">Tổng link rút gọn</div>
+                                    <div className="stat-val">{summary.generated_links || 0}</div>
+                                </div>
+                                <span style={{ fontSize: "20px" }}>🔗</span>
                             </div>
                             <div className="system-stat-mini-card">
-                                <span className="stat-label">Link tạo hôm nay</span>
-                                <span className="stat-val text-brand-color">{analytics.today_links || 0}</span>
+                                <div>
+                                    <div className="stat-label">Link tạo hôm nay</div>
+                                    <div className="stat-val text-brand-color">{analytics.today_links || 0}</div>
+                                </div>
+                                <span style={{ fontSize: "20px" }}>⚡</span>
                             </div>
                             <div className="system-stat-mini-card">
-                                <span className="stat-label">Thành viên mới (Tuần này)</span>
-                                <span className="stat-val text-green">+{analytics.new_users || 0}</span>
+                                <div>
+                                    <div className="stat-label">Thành viên mới (Tuần này)</div>
+                                    <div className="stat-val text-green">+{analytics.new_users || 0}</div>
+                                </div>
+                                <span style={{ fontSize: "20px" }}>👥</span>
                             </div>
                             <div className="system-stat-mini-card">
-                                <span className="stat-label">Tổng số Logs truy cập</span>
-                                <span className="stat-val">{summary.logs || 0}</span>
+                                <div>
+                                    <div className="stat-label">Tổng số Logs truy cập</div>
+                                    <div className="stat-val">{summary.logs || 0}</div>
+                                </div>
+                                <span style={{ fontSize: "20px" }}>📊</span>
                             </div>
                         </div>
 
