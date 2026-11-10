@@ -29,6 +29,7 @@ from routes.redirect import SHORT_URL_CACHE
 from middleware.auth import get_user_ratios
 from utils.shortener import generate_short_code
 from utils.url_cleaner import clean_shopee_url, clean_lazada_url
+from utils.tracking import save_tracking_code_mapping
 
 # Thông tin cấu hình Lazada Affiliate API chính thức
 LAZADA_APP_KEY = os.getenv("LAZADA_APP_KEY")
@@ -271,10 +272,9 @@ async def convert_link(request: Request, body: LinkRequest):
         if not product_image:
             product_image = "https://cdn-icons-png.flaticon.com/512/5968/5968953.png"
 
-        clean_email = body.user_email.replace("tho-hoantien", "local").replace("tho_hoantien", "local")
-        sanitized_email = clean_email.replace("-", "_").replace("@", "_at_").replace(".", "_")
+        # Ngụy trang sub_id thành chiến dịch MXH ngẫu nhiên + mã định danh ẩn danh cho user (vid_xxxxxxxxxx)
+        tracking_code = save_tracking_code_mapping(body.user_email)
         
-        # Ngụy trang sub_id thành chiến dịch MXH ngẫu nhiên (Facebook Reels, TikTok...)
         campaign_prefixes = [
             "fbreels_video_01",
             "fb_group_review",
@@ -289,7 +289,7 @@ async def convert_link(request: Request, body: LinkRequest):
             "fbreels_topdeal"
         ]
         chosen_prefix = random.choice(campaign_prefixes)
-        sub_id = f"{chosen_prefix}-{sanitized_email}"
+        sub_id = f"{chosen_prefix}-{tracking_code}"
         
         encoded_url = quote(cleaned_url, safe="")
         aff_link = f"https://s.shopee.vn/an_redir?origin_link={encoded_url}&affiliate_id={SHOPEE_AFFILIATE_ID}&sub_id={sub_id}"
@@ -331,9 +331,9 @@ async def convert_link(request: Request, body: LinkRequest):
             "userToken": LAZADA_USER_TOKEN
         }
         
-        # Gắn Sub ID theo email để hỗ trợ đối soát đơn hàng sau này
-        sanitized_email = body.user_email.replace("-", "_").replace("@", "_at_").replace(".", "_")
-        params["subId1"] = sanitized_email
+        # Gắn Sub ID theo mã định danh ẩn danh (bảo mật email, chống cắt chuỗi)
+        tracking_code = save_tracking_code_mapping(body.user_email)
+        params["subId1"] = tracking_code
         
         params["sign"] = generate_lazada_sign(api_path, params, LAZADA_APP_SECRET)
         

@@ -17,6 +17,7 @@ from config.limiter import limiter
 from config.settings import ADMIN_EMAIL, ADMIN_EMAIL2
 from middleware.auth import verify_admin, get_user_ratios
 from utils.analytics import get_firebase_summary, get_dashboard_analytics
+from utils.tracking import get_user_tracking_code, build_tracking_code_lookup_map, resolve_tracking_code_single
 
 router = APIRouter()
 
@@ -602,6 +603,7 @@ def get_registered_users(request: Request):
         
         result.append({
             "email": email,
+            "tracking_code": get_user_tracking_code(email),
             "displayName": u.get("displayName", ""),
             "photoURL": u.get("photoURL", ""),
             "createdAt": created_time,
@@ -637,6 +639,7 @@ def sync_users(request: Request):
                 {
                     "uid": user.uid,
                     "email": email,
+                    "tracking_code": get_user_tracking_code(email),
                     "displayName": user.display_name or email.split("@")[0],
                     "photoURL": user.photo_url or "",
                     "phoneNumber": user.phone_number or "",
@@ -783,6 +786,9 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
     success_count = 0
     skipped_count = 0
     
+    # Build complete reverse-lookup map {vid_xxx: email} once before processing rows
+    code_to_email = build_tracking_code_lookup_map()
+    
     # Process from header_row + 1 onwards
     for r_idx, row_vals in enumerate(rows[header_row + 1:]):
         try:
@@ -865,43 +871,61 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
                 utm_medium = "shopee"
                 campaign_id = "Shopee"
 
-            # Extract sub_ids values and search for email containing _at_
+            # Extract sub_ids values and resolve user email (supports vid_xxx, _at_, and direct @)
             sub_id_vals = []
             for sub_idx in col_map.get("sub_ids", []):
                 if sub_idx < len(row_vals) and row_vals[sub_idx]:
                     sub_id_vals.append(str(row_vals[sub_idx]).strip())
             
             email = ""
+            # Priority 1: Check anonymized tracking code (vid_xxxxxxxxxx)
             for val in sub_id_vals:
-                if "_at_" in val:
-                    sanitized_email = val
-                    parts = sanitized_email.split("_at_")
-                    username = parts[0]
-                    domain = parts[1].replace("_", ".")
-                    
-                    if not domain.endswith("com") and not domain.endswith("vn") and not domain.endswith("net"):
-                        if domain.startswith("gmail"):
-                            domain = "gmail.com"
-                        elif domain.startswith("yahoo"):
-                            domain = "yahoo.com"
-                    temp_email = f"{username}@{domain}"
-                    
-                    matched_user_email = ""
-                    try:
-                        query = db.collection("users").where("email", ">=", username).where("email", "<", username + "\uf8ff").limit(5).stream()
-                        for doc in query:
-                            u_email = doc.to_dict().get("email", "")
-                            u_sanitized = u_email.replace("-", "_").replace("@", "_at_").replace(".", "_")
-                            if u_sanitized.startswith(sanitized_email) or sanitized_email.startswith(u_sanitized[:len(sanitized_email)]):
-                                matched_user_email = u_email
-                                break
-                    except Exception as ex:
-                        print(f"Firestore sub_id matching error: {ex}")
-                        
-                    email = matched_user_email if matched_user_email else temp_email
+                tokens = [val]
+                if "-" in val and "vid_" in val:
+                    tokens = val.split("-") + [val]
+                for tok in tokens:
+                    tok = tok.strip()
+                    if tok.startswith("vid_"):
+                        resolved = code_to_email.get(tok) or resolve_tracking_code_single(tok)
+                        if resolved:
+                            email = resolved
+                            break
+                if email:
                     break
-            else:
-                # Fallback to direct email checking in any sub_id field (like utm_source in TikTok/AccessTrade)
+
+            # Priority 2: Legacy _at_ email matching
+            if not email:
+                for val in sub_id_vals:
+                    if "_at_" in val:
+                        sanitized_email = val
+                        parts = sanitized_email.split("_at_")
+                        username = parts[0]
+                        domain = parts[1].replace("_", ".")
+                        
+                        if not domain.endswith("com") and not domain.endswith("vn") and not domain.endswith("net"):
+                            if domain.startswith("gmail"):
+                                domain = "gmail.com"
+                            elif domain.startswith("yahoo"):
+                                domain = "yahoo.com"
+                        temp_email = f"{username}@{domain}"
+                        
+                        matched_user_email = ""
+                        try:
+                            query = db.collection("users").where("email", ">=", username).where("email", "<", username + "\uf8ff").limit(5).stream()
+                            for doc in query:
+                                u_email = doc.to_dict().get("email", "")
+                                u_sanitized = u_email.replace("-", "_").replace("@", "_at_").replace(".", "_")
+                                if u_sanitized.startswith(sanitized_email) or sanitized_email.startswith(u_sanitized[:len(sanitized_email)]):
+                                    matched_user_email = u_email
+                                    break
+                        except Exception as ex:
+                            print(f"Firestore sub_id matching error: {ex}")
+                            
+                        email = matched_user_email if matched_user_email else temp_email
+                        break
+
+            # Priority 3: Fallback to direct email checking in any sub_id field (like utm_source in TikTok/AccessTrade)
+            if not email:
                 for val in sub_id_vals:
                     if "@" in val:
                         email = val
@@ -1022,6 +1046,7 @@ def sync_lazada_orders(request: Request, days: int = 7):
     updated_count = 0
     page = 1
     limit = 100
+    code_to_email = build_tracking_code_lookup_map()
 
     while page <= 10:
         params = {
@@ -1074,12 +1099,14 @@ def sync_lazada_orders(request: Request, days: int = 7):
                 product_price = float(order_item.get("orderAmt", 0.0))
                 reward = float(order_item.get("estPayout", 0.0))
                 
-                # Giải mã email khách hàng từ subId1
-                sub_id1 = order_item.get("subId1") or ""
+                # Giải mã email khách hàng từ subId1 (hỗ trợ vid_xxx, _at_, và email trực tiếp)
+                sub_id1 = str(order_item.get("subId1") or "").strip()
                 email = ""
                 
                 if sub_id1:
-                    if "_at_" in sub_id1:
+                    if sub_id1.startswith("vid_"):
+                        email = code_to_email.get(sub_id1) or resolve_tracking_code_single(sub_id1)
+                    if not email and "_at_" in sub_id1:
                         parts = sub_id1.split("_at_")
                         username = parts[0]
                         domain = parts[1].replace("_", ".")
@@ -1104,7 +1131,7 @@ def sync_lazada_orders(request: Request, days: int = 7):
                         except Exception:
                             pass
                         email = matched_user_email if matched_user_email else temp_email
-                    elif "@" in sub_id1:
+                    elif not email and "@" in sub_id1:
                         email = sub_id1
 
                 # Thời gian tạo đơn

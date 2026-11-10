@@ -369,10 +369,22 @@ const Admin = ({ user }) => {
             "Link": log.short_link || ""
         }));
 
+        const usersBackupData = registeredUsers.map(u => ({
+            "Tên Hiển Thị": u.displayName || "N/A",
+            "Email": u.email || "",
+            "Mã Định Danh (Sub ID)": u.tracking_code || "",
+            "Khả Dụng (đ)": u.balance || 0,
+            "Chờ Duyệt (đ)": u.pending || 0,
+            "Đã Rút (đ)": u.withdrawn || 0,
+            "Ngày Đăng Ký": u.createdAt || "--",
+            "Đăng Nhập Qua": u.provider || ""
+        }));
+
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ordersData), "Đơn Hàng");
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(withdrawalsData), "Rút Tiền");
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(usersLinksData), "Nhật Ký Link");
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(usersBackupData), "Thành Viên (Backup)");
 
         XLSX.writeFile(wb, `Bao_Cao_Admin_${new Date().toISOString().slice(0, 10)}.xlsx`);
     };
@@ -411,7 +423,8 @@ const Admin = ({ user }) => {
 
     const filteredRegisteredUsers = registeredUsers.filter(u =>
         (u.displayName || "").toLowerCase().includes(userSearchTerm.toLowerCase()) ||
-        (u.email || "").toLowerCase().includes(userSearchTerm.toLowerCase())
+        (u.email || "").toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+        (u.tracking_code || "").toLowerCase().includes(userSearchTerm.toLowerCase())
     );
 
     if (authError) {
@@ -978,7 +991,7 @@ const Admin = ({ user }) => {
                                             <SearchIcon />
                                             <input
                                                 type="text"
-                                                placeholder="Tìm tên hoặc email thành viên..."
+                                                placeholder="Tìm tên, email hoặc mã định danh (vid_...)..."
                                                 value={userSearchTerm}
                                                 onChange={(e) => setUserSearchTerm(e.target.value)}
                                                 className="log-search-input"
@@ -994,6 +1007,7 @@ const Admin = ({ user }) => {
                                                 <th>Ảnh đại diện</th>
                                                 <th>Tên hiển thị</th>
                                                 <th>Email</th>
+                                                <th>Mã Định Danh</th>
                                                 <th>Ví (Khả dụng / Chờ / Rút)</th>
                                                 <th>Ngày đăng ký</th>
                                                 <th>Hình thức đăng nhập</th>
@@ -1017,6 +1031,7 @@ const Admin = ({ user }) => {
                                                     </td>
                                                     <td><span className="font-weight-bold" style={{ color: "#2c3e50", fontSize: "14px" }}>{u.displayName || "N/A"}</span></td>
                                                     <td><span className="styled-user-email">{u.email}</span></td>
+                                                    <td><span className="styled-order-code">{u.tracking_code || "--"}</span></td>
                                                     <td>
                                                         <div style={{ display: "flex", flexDirection: "column", gap: "2px", lineHeight: "1.3" }}>
                                                             <span style={{ color: "#10b981", fontWeight: "800", fontSize: "13px" }} title="Số dư khả dụng để yêu cầu rút">
@@ -1052,7 +1067,7 @@ const Admin = ({ user }) => {
                                             ))}
                                             {filteredRegisteredUsers.length === 0 && (
                                                 <tr>
-                                                    <td colSpan="6" className="empty-table-placeholder">
+                                                    <td colSpan="7" className="empty-table-placeholder">
                                                         <div className="empty-view">
                                                             <span className="empty-icon-bunny">🐰</span>
                                                             <p>Không tìm thấy thành viên nào</p>
