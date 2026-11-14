@@ -195,12 +195,9 @@ def admin_reports(request: Request):
     import time
     now = time.time()
     
-    # Trả về cache nếu chưa quá 10 phút (600 giây)
-    if ADMIN_REPORTS_CACHE["data"] is not None and now - ADMIN_REPORTS_CACHE["last_updated"] < 600:
+    # Trả về cache nếu chưa quá 30 phút (1800 giây)
+    if ADMIN_REPORTS_CACHE["data"] is not None and now - ADMIN_REPORTS_CACHE["last_updated"] < 1800:
         return ADMIN_REPORTS_CACHE["data"]
-        
-    # Tự động dọn dẹp các đơn hàng trùng lặp trước khi thống kê
-    cleanup_database_duplicates(db)
         
     orders = [
         doc.to_dict()
@@ -298,7 +295,7 @@ def get_withdrawals(request: Request):
     now = time.time()
 
     global ADMIN_WITHDRAWALS_CACHE
-    if ADMIN_WITHDRAWALS_CACHE["data"] is not None and now - ADMIN_WITHDRAWALS_CACHE["last_updated"] < 600:
+    if ADMIN_WITHDRAWALS_CACHE["data"] is not None and now - ADMIN_WITHDRAWALS_CACHE["last_updated"] < 1800:
         return ADMIN_WITHDRAWALS_CACHE["data"]
 
     docs = db.collection("withdrawals").order_by("created_at", direction=firestore.Query.DESCENDING).stream()
@@ -354,7 +351,7 @@ def get_admin_users(request: Request, start_date: str = None, end_date: str = No
 
     global ADMIN_USERS_ACTIVITY_CACHE
     if (ADMIN_USERS_ACTIVITY_CACHE["data"] is not None and 
-        now - ADMIN_USERS_ACTIVITY_CACHE["last_updated"] < 600 and
+        now - ADMIN_USERS_ACTIVITY_CACHE["last_updated"] < 1800 and
         ADMIN_USERS_ACTIVITY_CACHE.get("start_date") == start_date and
         ADMIN_USERS_ACTIVITY_CACHE.get("end_date") == end_date):
         return ADMIN_USERS_ACTIVITY_CACHE["data"]
@@ -370,10 +367,6 @@ def get_admin_users(request: Request, start_date: str = None, end_date: str = No
             query = query.where("created_at", ">=", start_dt)
         except Exception:
             pass
-    else:
-        # Mặc định lọc 30 ngày gần nhất để giảm tối đa lượt đọc Firestore
-        thirty_days_ago_dt = datetime.now(timezone.utc) - timedelta(days=30)
-        query = query.where("created_at", ">=", thirty_days_ago_dt)
 
     if end_date:
         try:
@@ -382,6 +375,12 @@ def get_admin_users(request: Request, start_date: str = None, end_date: str = No
             query = query.where("created_at", "<", end_dt)
         except Exception:
             pass
+
+    if not start_date and not end_date:
+        # Mặc định chỉ lấy 300 link mới nhất thay vì quét hàng chục ngàn bản ghi trong 30 ngày
+        query = query.order_by("created_at", direction=firestore.Query.DESCENDING).limit(300)
+    else:
+        query = query.order_by("created_at", direction=firestore.Query.DESCENDING).limit(2000)
 
     conversions = query.stream()
     user_data = defaultdict(lambda: {"email": "", "total_links": 0, "recent_links": []})
@@ -461,8 +460,8 @@ def get_registered_users(request: Request):
     import time
     now = time.time()
     
-    # Trả về cache nếu chưa quá 10 phút (600 giây)
-    if ADMIN_USERS_CACHE["data"] is not None and now - ADMIN_USERS_CACHE["last_updated"] < 600:
+    # Trả về cache nếu chưa quá 30 phút (1800 giây)
+    if ADMIN_USERS_CACHE["data"] is not None and now - ADMIN_USERS_CACHE["last_updated"] < 1800:
         return ADMIN_USERS_CACHE["data"]
         
     # 1. Lấy toàn bộ danh sách users từ collection "users"
@@ -527,16 +526,30 @@ def get_registered_users(request: Request):
         elif status == "pending":
             user_pending_withdraw[email_clean] += amount
 
-    # Quét thêm collection conversions để lấy các email Zalo Bot vừa mới tạo link (dù chưa có đơn)
+    # Quét bảng tracking_codes (và tối đa 200 link gần nhất) thay vì quét toàn bộ 26.000+ conversions
     try:
-        conversions_docs = db.collection("conversions").stream()
-        for doc in conversions_docs:
+        for doc in db.collection("tracking_codes").stream():
+            tc_data = doc.to_dict()
+            e = tc_data.get("email")
+            if e:
+                all_activity_emails.add(str(e).strip().lower())
+    except Exception as e:
+        print(f"Error streaming tracking_codes for users: {e}")
+
+    try:
+        recent_conv_docs = (
+            db.collection("conversions")
+            .order_by("created_at", direction=firestore.Query.DESCENDING)
+            .limit(200)
+            .stream()
+        )
+        for doc in recent_conv_docs:
             c = doc.to_dict()
             e = c.get("user_email")
             if e:
                 all_activity_emails.add(str(e).strip().lower())
     except Exception as e:
-        print(f"Error streaming conversions for users: {e}")
+        print(f"Error streaming recent conversions for users: {e}")
 
     # Bổ sung các ví ảo Zalo Bot chưa nằm trong collection "users"
     added_virtual_emails = set()
@@ -789,6 +802,17 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
     # Build complete reverse-lookup map {vid_xxx: email} once before processing rows
     code_to_email = build_tracking_code_lookup_map()
     
+    # Preload all existing orders once into memory to avoid N queries inside the Excel loop
+    existing_orders_by_oid = defaultdict(list)
+    try:
+        for doc in db.collection("orders").stream():
+            d = doc.to_dict()
+            oid = str(d.get("order_id") or "").strip()
+            if oid:
+                existing_orders_by_oid[oid].append((doc.id, d))
+    except Exception as e:
+        print(f"Error preloading orders for import: {e}")
+    
     # Process from header_row + 1 onwards
     for r_idx, row_vals in enumerate(rows[header_row + 1:]):
         try:
@@ -934,8 +958,8 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
             # Reconstruct sub_id for utm_content logging
             sub_id = "-".join(sub_id_vals)
             
-            # Search for existing documents with the same order_id
-            existing_docs = list(db.collection("orders").where("order_id", "==", order_id).stream())
+            # Lookup existing documents in preloaded memory map (0 Firestore reads per row)
+            existing_docs = existing_orders_by_oid.get(order_id, [])
             
             sales_time = get_val("sales_time")
             if sales_time:
@@ -947,16 +971,34 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
                 sales_time_str = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
             if existing_docs:
-                for doc in existing_docs:
-                    db.collection("orders").document(doc.id).set({
-                        "status": status_code,
-                        "confirmed": confirmed,
-                        "product_price": product_price if product_price > 0 else doc.to_dict().get("product_price", 0.0),
-                        "reward": reward if reward > 0 else doc.to_dict().get("reward", 0.0),
-                        "utm_source": email if email else doc.to_dict().get("utm_source", ""),
-                        "campaign_id": campaign_id if campaign_id != "Shopee" else doc.to_dict().get("campaign_id", "Shopee"),
-                        "utm_medium": utm_medium if utm_medium != "shopee" else doc.to_dict().get("utm_medium", "shopee"),
-                    }, merge=True)
+                for doc_id, doc_data in existing_docs:
+                    new_price = product_price if product_price > 0 else doc_data.get("product_price", 0.0)
+                    new_reward = reward if reward > 0 else doc_data.get("reward", 0.0)
+                    new_email = email if email else doc_data.get("utm_source", "")
+                    new_camp = campaign_id if campaign_id != "Shopee" else doc_data.get("campaign_id", "Shopee")
+                    new_medium = utm_medium if utm_medium != "shopee" else doc_data.get("utm_medium", "shopee")
+
+                    # Chỉ ghi vào Firestore nếu thực sự có trường dữ liệu thay đổi
+                    if (
+                        doc_data.get("status") != status_code
+                        or doc_data.get("confirmed") != confirmed
+                        or float(doc_data.get("product_price", 0.0)) != float(new_price)
+                        or float(doc_data.get("reward", 0.0)) != float(new_reward)
+                        or doc_data.get("utm_source", "") != new_email
+                        or doc_data.get("campaign_id", "") != new_camp
+                        or doc_data.get("utm_medium", "") != new_medium
+                    ):
+                        update_payload = {
+                            "status": status_code,
+                            "confirmed": confirmed,
+                            "product_price": new_price,
+                            "reward": new_reward,
+                            "utm_source": new_email,
+                            "campaign_id": new_camp,
+                            "utm_medium": new_medium,
+                        }
+                        db.collection("orders").document(doc_id).set(update_payload, merge=True)
+                        doc_data.update(update_payload)
             else:
                 raw_tx_id = get_val("transaction_id")
                 if raw_tx_id:
@@ -964,7 +1006,7 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
                 else:
                     transaction_id = f"{utm_medium}_{order_id}"
 
-                db.collection("orders").document(transaction_id).set({
+                new_doc_data = {
                     "transaction_id": transaction_id,
                     "order_id": order_id,
                     "campaign_id": campaign_id,
@@ -979,12 +1021,17 @@ async def import_shopee_report(request: Request, file: UploadFile = File(...)):
                     "utm_content": sub_id,
                     "utm_medium": utm_medium,
                     "created_at": firestore.SERVER_TIMESTAMP
-                }, merge=True)
+                }
+                db.collection("orders").document(transaction_id).set(new_doc_data, merge=True)
+                existing_orders_by_oid[order_id].append((transaction_id, new_doc_data))
             
             success_count += 1
         except Exception as e:
             print(f"Lỗi khi đọc dòng {r_idx}: {e}")
             skipped_count += 1
+
+    # Dọn dẹp đơn trùng lặp ngay sau khi import xong (thay vì chạy mỗi lần mở trang Admin)
+    cleanup_database_duplicates(db)
             
     # Reset cache báo cáo Admin và bảng xếp hạng khi import thành công
     global ADMIN_REPORTS_CACHE, ADMIN_USERS_CACHE

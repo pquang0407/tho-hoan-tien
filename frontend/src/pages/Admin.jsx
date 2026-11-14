@@ -118,9 +118,16 @@ const Admin = ({ user }) => {
         }
         fetchAccessTradeReport();
         fetchWithdrawals();
-        fetchUsersList();
-        fetchRegisteredUsers();
     }, [user]);
+
+    // Chỉ tải dữ liệu Thành Viên & Nhật ký Link khi người dùng bấm sang tab "Thành Viên & Link"
+    useEffect(() => {
+        if (!user) return;
+        if (activeTab === "users") {
+            if (registeredUsers.length === 0) fetchRegisteredUsers();
+            if (usersList.length === 0) fetchUsersList();
+        }
+    }, [activeTab, user]);
 
     // Sorting user activity log using backend timestamp (time_val)
     useEffect(() => {
@@ -493,7 +500,17 @@ const Admin = ({ user }) => {
                         style={{ display: "none" }}
                         onChange={handleImportShopeeExcel}
                     />
-                    <button className="btn-action-refresh" onClick={() => { fetchAccessTradeReport(); fetchWithdrawals(); fetchUsersList(); fetchRegisteredUsers(); }}>
+                    <button className="btn-action-refresh" onClick={() => {
+                        if (activeTab === "users") {
+                            fetchUsersList();
+                            fetchRegisteredUsers();
+                        } else if (activeTab === "withdrawals") {
+                            fetchWithdrawals();
+                        } else {
+                            fetchAccessTradeReport();
+                            fetchWithdrawals();
+                        }
+                    }}>
                         <RefreshIcon />
                         <span>Làm Mới</span>
                     </button>

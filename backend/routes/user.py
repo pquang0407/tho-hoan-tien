@@ -608,7 +608,7 @@ def leaderboard():
             "data": LEADERBOARD_CACHE["ranking"]
         }
 
-    orders = db.collection("orders").stream()
+    orders = db.collection("orders").where("confirmed", "==", 1).stream()
     ranking = defaultdict(float)
 
     for doc in orders:

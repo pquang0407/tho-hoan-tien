@@ -1,5 +1,6 @@
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
+from firebase_admin import firestore
 from config.database import db
 from middleware.auth import get_user_ratios
 
@@ -29,42 +30,55 @@ def get_firebase_summary():
     }
 
 def get_dashboard_analytics(orders):
-    today = datetime.now(timezone.utc) + timedelta(hours=7)
+    vn_tz = timezone(timedelta(hours=7))
+    today = datetime.now(vn_tz)
     today_date = today.date()
     week_ago = today_date - timedelta(days=6)
     
-    # 1. Chỉ tải dữ liệu conversions trong vòng 30 ngày qua thay vì tải toàn bộ
-    thirty_days_ago_dt = datetime.now(timezone.utc) - timedelta(days=30)
-    conversions = [
-        doc.to_dict() 
-        for doc in db.collection("conversions")
-        .where("created_at", ">=", thirty_days_ago_dt)
-        .stream()
-    ]
-    
-    daily_links = defaultdict(int)
-    product_counter = Counter()
-    user_cashback = defaultdict(float)
+    # 1. Đếm số link mỗi ngày trong 7 ngày gần nhất bằng COUNT Aggregation (chỉ tốn ~1 read / 1000 docs thay vì tải hàng chục ngàn docs)
+    daily_links = {}
     today_links = 0
-    
-    for item in conversions:
-        created = item.get("created_at")
-        doc_date = None
-        if created:
-            if hasattr(created, "timestamp"):
-                doc_date = (datetime.fromtimestamp(created.timestamp(), tz=timezone.utc) + timedelta(hours=7)).date()
-            elif isinstance(created, str):
-                try: doc_date = datetime.fromisoformat(created[:19]).date()
-                except: pass
-                
-        if not doc_date: continue
-        if doc_date >= week_ago: daily_links[str(doc_date)] += 1
-        if doc_date == today_date: today_links += 1
-            
-        product = item.get("product_name")
-        platform = item.get("platform", "tiktok")
-        if product: product_counter[(product, platform)] += 1
+    for i in range(7):
+        d = week_ago + timedelta(days=i)
+        day_start_vn = datetime.combine(d, datetime.min.time(), tzinfo=vn_tz)
+        day_end_vn = day_start_vn + timedelta(days=1)
+        day_start_utc = day_start_vn.astimezone(timezone.utc)
+        day_end_utc = day_end_vn.astimezone(timezone.utc)
+        try:
+            cnt = (
+                db.collection("conversions")
+                .where("created_at", ">=", day_start_utc)
+                .where("created_at", "<", day_end_utc)
+                .count()
+                .get()[0][0]
+                .value
+            )
+        except Exception as e:
+            print(f"Error counting conversions for {d}: {e}")
+            cnt = 0
+        daily_links[str(d)] = cnt
+        if d == today_date:
+            today_links = cnt
 
+    # 2. Chỉ lấy mẫu 300 link gần nhất để thống kê Top Sản Phẩm (tiết kiệm >98% lượt đọc Firestore)
+    product_counter = Counter()
+    try:
+        recent_conversions = (
+            db.collection("conversions")
+            .order_by("created_at", direction=firestore.Query.DESCENDING)
+            .limit(300)
+            .stream()
+        )
+        for doc in recent_conversions:
+            item = doc.to_dict()
+            product = item.get("product_name")
+            platform = item.get("platform", "tiktok")
+            if product:
+                product_counter[(product, platform)] += 1
+    except Exception as e:
+        print(f"Error sampling recent conversions for top products: {e}")
+
+    user_cashback = defaultdict(float)
     for order in orders:
         email = order.get("utm_source")
         if not email:
@@ -78,7 +92,7 @@ def get_dashboard_analytics(orders):
         u_ratio, _, _ = get_user_ratios(email)
         user_cashback[email] += reward * u_ratio
     
-    # 2. Đếm số lượng user mới đăng ký trong 7 ngày qua từ bảng users bằng lệnh COUNT
+    # 3. Đếm số lượng user mới đăng ký trong 7 ngày qua từ bảng users bằng lệnh COUNT
     try:
         week_ago_ms = int((datetime.now(timezone.utc) - timedelta(days=7)).timestamp() * 1000)
         new_users = db.collection("users").where("createdAt", ">=", week_ago_ms).count().get()[0][0].value
