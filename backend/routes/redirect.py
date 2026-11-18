@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse
 from config.database import db
 from config.settings import SHOPEE_AFFILIATE_ID
 from utils.tracking import generate_dynamic_sub_id
+from utils.url_cleaner import normalize_shopee_product_url
 
 router = APIRouter()
 
@@ -212,6 +213,9 @@ def extract_shopee_components(record: dict) -> tuple:
         except Exception as e:
             print(f"Error parsing Shopee long_url components: {e}")
 
+    if original_url:
+        original_url = normalize_shopee_product_url(original_url)
+
     return original_url, aff_id, tracking_code
 
 
@@ -269,6 +273,15 @@ def build_random_channel_headers(raw_ua: str) -> tuple:
     return "other", base_ua, referer
 
 
+def _clean_shopee_web_url(http_url: str) -> str:
+    """Chuyển /opaanlp/shop/item?__mobile__=1&... về /product/shop/item?... để trình duyệt Web/PC mở thẳng trang sản phẩm không bị lỗi."""
+    if not http_url:
+        return http_url
+    cleaned = re.sub(r"/opaanlp/(\d+)/(\d+)", r"/product/\1/\2", http_url)
+    cleaned = cleaned.replace("__mobile__=1&", "").replace("&__mobile__=1", "").replace("?__mobile__=1", "")
+    return cleaned
+
+
 def resolve_shopee_clean_channel(dynamic_aff_url: str, raw_ua: str) -> dict:
     """
     Gọi s.shopee.vn/an_redir bằng bộ Header xoay vòng ngẫu nhiên 5 kênh (Facebook, TikTok, YouTube, Instagram, Khác - tuyệt đối không có Zalo),
@@ -289,7 +302,7 @@ def resolve_shopee_clean_channel(dynamic_aff_url: str, raw_ua: str) -> dict:
         resp = requests.get(dynamic_aff_url, headers=req_headers, allow_redirects=False, timeout=4)
         # Trường hợp Desktop trả về 301/302 Location trực tiếp
         if resp.status_code in (301, 302, 303, 307, 308) and resp.headers.get("Location"):
-            loc = resp.headers["Location"]
+            loc = _clean_shopee_web_url(resp.headers["Location"])
             return {"mode": "redirect", "http_url": loc, "deep_link_url": ""}
 
         body = resp.text or ""
@@ -297,7 +310,7 @@ def resolve_shopee_clean_channel(dynamic_aff_url: str, raw_ua: str) -> dict:
         m_deep = re.search(r'deepLinkUrl:\s*"([^"]+)"', body)
         m_evoke = re.search(r'evokeAppMethod:\s*parseInt\("(\d+)"\)', body)
 
-        http_url = json.loads(f'"{m_http.group(1)}"') if m_http else ""
+        http_url = _clean_shopee_web_url(json.loads(f'"{m_http.group(1)}"')) if m_http else ""
         deep_link_url = json.loads(f'"{m_deep.group(1)}"') if m_deep else ""
         evoke_method = int(m_evoke.group(1)) if m_evoke else (1 if ("iPhone" in spoofed_ua or "iPad" in spoofed_ua) else 2)
 

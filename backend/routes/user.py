@@ -246,12 +246,17 @@ async def convert_link(request: Request, body: LinkRequest):
                 status_code=400,
                 detail="Hoàn tiền Shopee đang được chuẩn bị và sẽ ra mắt sớm! Hiện tại bạn hãy trải nghiệm mua sắm qua TikTok Shop nhé 🐰"
             )
-        product_name = f"Sản phẩm Shopee"
+        product_name = pasted_title if pasted_title else "Sản phẩm Shopee"
         product_image = ""
-        product_price = 0.0
+        product_price = pasted_price
         commission = 0.0
 
         cleaned_url = clean_shopee_url(original_url)
+        if "error_page" in cleaned_url or "shopee.vn" not in cleaned_url.lower():
+            raise HTTPException(
+                status_code=400,
+                detail="Link rút gọn Shopee không tồn tại hoặc đã hết hạn. Vui lòng kiểm tra lại đường dẫn sản phẩm nhé! 🐰"
+            )
 
         try:
             data_api_url = f"https://data.addlivetag.com/product-data/product-data.php?url={quote(cleaned_url)}"
@@ -266,15 +271,24 @@ async def convert_link(request: Request, body: LinkRequest):
                 res_json = response_data.json()
                 if res_json.get("status") == "success" and res_json.get("productInfo"):
                     p_info = res_json["productInfo"]
-                    product_name = p_info.get("productName", product_name)
-                    product_price = float(p_info.get("price", 0.0))
+                    product_name = p_info.get("productName") or product_name
+                    fetched_price = float(p_info.get("price", 0.0))
+                    if fetched_price > 0:
+                        product_price = fetched_price
                     product_image = p_info.get("imageUrl", "")
                     commission = float(p_info.get("commission", 0.0))
         except Exception as e:
             print(f"Shopee Product Data API error: {e}")
 
         if not product_image:
-            product_image = "https://cdn-icons-png.flaticon.com/512/5968/5968953.png"
+            product_image = "https://deo.shopeemobile.com/shopee/shopee-mobilemall-live-sg/homepagefe/26c9324913c021677768c36975d635ef.png"
+
+        if product_price <= 0:
+            product_price = 150000.0
+            is_estimated_price = True
+        if commission <= 0:
+            commission = product_price * 0.05
+            is_estimated_price = True
 
         # Tạo mã định danh ẩn danh cho user (vid_xxxxxxxxxx) và chuỗi sub_id chuẩn quy cách (cDDdMM_hex4-vid_xxx-hex6)
         tracking_code = save_tracking_code_mapping(body.user_email)
