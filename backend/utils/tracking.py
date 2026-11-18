@@ -1,9 +1,31 @@
+import re
 import hashlib
+import secrets
+from datetime import datetime, timedelta, timezone
 from firebase_admin import firestore, auth as firebase_auth
 from config.database import db
 
 # In-memory cache to avoid redundant Firestore writes and lookups
 TRACKING_CODE_CACHE = {}
+
+def generate_dynamic_sub_id(tracking_code: str, client_token: str = "") -> str:
+    """
+    Generate a unique per-click sub_id ("1 Link - Vạn Click Khác Nhau") following the neutral hex spec:
+    - No sensitive words (hoantien, cashback, bot, click) and no social platform words (fb, zalo, tiktok, youtube)
+    - Uses prefix 'c' + day + 'd' + month + '_' + 4-char random hex (e.g., c18d11_x9a2)
+    - Followed by '-vid_xxxxxxxxxx' (deterministic user tracking ID for 100% order reconciliation)
+    - Followed by '-' + 6-char random hex click nonce (e.g., a4f9c2)
+    """
+    now_vn = datetime.now(timezone(timedelta(hours=7)))
+    date_tag = f"c{now_vn.strftime('%d')}d{now_vn.strftime('%m')}"
+    rand_prefix_hex = secrets.token_hex(2)
+    prefix = f"{date_tag}_{rand_prefix_hex}"
+    if client_token and re.match(r"^c\d{2}d\d{2}_[0-9a-z]{4}$", client_token):
+        prefix = client_token
+    click_nonce = secrets.token_hex(3)
+    if tracking_code:
+        return f"{prefix}-{tracking_code}-{click_nonce}"
+    return f"{prefix}-{click_nonce}"
 
 def get_user_tracking_code(email: str) -> str:
     """

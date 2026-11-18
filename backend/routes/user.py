@@ -29,7 +29,7 @@ from routes.redirect import SHORT_URL_CACHE
 from middleware.auth import get_user_ratios
 from utils.shortener import generate_short_code
 from utils.url_cleaner import clean_shopee_url, clean_lazada_url
-from utils.tracking import save_tracking_code_mapping
+from utils.tracking import save_tracking_code_mapping, generate_dynamic_sub_id
 
 # Thông tin cấu hình Lazada Affiliate API chính thức
 LAZADA_APP_KEY = os.getenv("LAZADA_APP_KEY")
@@ -214,18 +214,22 @@ async def convert_link(request: Request, body: LinkRequest):
             raise HTTPException(status_code=400, detail=msg)
         data = response_data["data"]
         aff_link = data["aff_url"]
+        product_name = data["product_name"]
+        product_image = data["product_image"]
         
         # Tạo short code cho link TikTok
         short_code = generate_short_code()
-        db.collection("short_urls").document(short_code).set({
+        short_doc_data = {
             "long_url": aff_link,
+            "original_url": original_url,
+            "platform": "tiktok",
+            "product_name": product_name,
+            "product_image": product_image,
             "created_at": firestore.SERVER_TIMESTAMP
-        })
-        SHORT_URL_CACHE[short_code] = aff_link
+        }
+        db.collection("short_urls").document(short_code).set(short_doc_data)
+        SHORT_URL_CACHE[short_code] = short_doc_data
         short_link = f"https://tk.{BASE_DOMAIN}/{short_code}"
-        
-        product_name = data["product_name"]
-        product_image = data["product_image"]
         
         price_info = data.get("product_price", {})
         product_price = float(price_info.get("maximum_amount") or price_info.get("minimum_amount") or 0)
@@ -272,37 +276,26 @@ async def convert_link(request: Request, body: LinkRequest):
         if not product_image:
             product_image = "https://cdn-icons-png.flaticon.com/512/5968/5968953.png"
 
-        # Ngụy trang sub_id thành chiến dịch MXH ngẫu nhiên + mã định danh ẩn danh cho user (vid_xxxxxxxxxx)
+        # Tạo mã định danh ẩn danh cho user (vid_xxxxxxxxxx) và chuỗi sub_id chuẩn quy cách (cDDdMM_hex4-vid_xxx-hex6)
         tracking_code = save_tracking_code_mapping(body.user_email)
-        
-        campaign_prefixes = [
-            "fbreels_video_01",
-            "fb_group_review",
-            "tiktok_bio_sale",
-            "fbr_2410_x9",
-            "fbreels_viral_02",
-            "fb_reels_hot",
-            "fbr_post24_x9",
-            "tiktok_video_review",
-            "fb_page_dealhot",
-            "fbr_trending_m1",
-            "fbreels_topdeal"
-        ]
-        chosen_prefix = random.choice(campaign_prefixes)
-        sub_id = f"{chosen_prefix}-{tracking_code}"
+        sub_id = generate_dynamic_sub_id(tracking_code)
         
         encoded_url = quote(cleaned_url, safe="")
         aff_link = f"https://s.shopee.vn/an_redir?origin_link={encoded_url}&affiliate_id={SHOPEE_AFFILIATE_ID}&sub_id={sub_id}"
 
-        # Tạo short code và định dạng link theo subdomain của bạn
+        # Tạo short code hỗ trợ "1 Link - Vạn Click Khác Nhau" (mỗi lượt click sẽ tự sinh sub_id & uls_trackid mới)
         short_code = generate_short_code()
-        db.collection("short_urls").document(short_code).set({
+        short_doc_data = {
             "long_url": aff_link,
             "original_url": cleaned_url,
+            "tracking_code": tracking_code,
             "platform": "shopee",
+            "product_name": product_name,
+            "product_image": product_image,
             "created_at": firestore.SERVER_TIMESTAMP
-        })
-        SHORT_URL_CACHE[short_code] = aff_link
+        }
+        db.collection("short_urls").document(short_code).set(short_doc_data)
+        SHORT_URL_CACHE[short_code] = short_doc_data
         short_link = f"https://shp.{BASE_DOMAIN}/{short_code}"
 
         u_ratio, a_ratio, c_percent = get_user_ratios(body.user_email)
@@ -370,11 +363,16 @@ async def convert_link(request: Request, body: LinkRequest):
 
         # 3. Tạo short code và định dạng link theo subdomain của bạn
         short_code = generate_short_code()
-        db.collection("short_urls").document(short_code).set({
+        short_doc_data = {
             "long_url": aff_link,
+            "original_url": cleaned_url,
+            "tracking_code": tracking_code,
+            "platform": "lazada",
+            "product_name": product_name,
             "created_at": firestore.SERVER_TIMESTAMP
-        })
-        SHORT_URL_CACHE[short_code] = aff_link
+        }
+        db.collection("short_urls").document(short_code).set(short_doc_data)
+        SHORT_URL_CACHE[short_code] = short_doc_data
         short_link = f"https://lz.{BASE_DOMAIN}/{short_code}"
 
         # 4. Gọi tiếp API /marketing/product/feed để lấy ảnh thật và giá bán thật của sản phẩm
@@ -461,7 +459,7 @@ async def convert_link(request: Request, body: LinkRequest):
         "success": True,
         "product": {"name": product_name, "image": product_image, "price": product_price, "is_estimated_price": is_estimated_price},
         "commission": {"amount": commission, "cashback_percent": c_percent, "cashback": cashback, "publisher_income": publisher_income},
-        "links": {"short": short_link, "affiliate": aff_link}
+        "links": {"short": short_link, "affiliate": short_link}
     }
 
 @router.post("/api/withdrawals")
