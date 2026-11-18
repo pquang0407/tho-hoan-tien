@@ -1,6 +1,7 @@
 import re
 import json
 import html
+import random
 import secrets
 import requests
 from urllib.parse import urlparse, parse_qs, quote, unquote
@@ -214,19 +215,76 @@ def extract_shopee_components(record: dict) -> tuple:
     return original_url, aff_id, tracking_code
 
 
+def build_random_channel_headers(raw_ua: str) -> tuple:
+    """
+    Tuyệt đối xóa sạch dấu vết Zalo và xoay vòng ngẫu nhiên giữa 5 kênh hợp lệ:
+    1. Facebook
+    2. TikTok
+    3. YouTube
+    4. Instagram
+    5. Khác (Trình duyệt Safari/Chrome thuần)
+    Giữ nguyên đời máy & hệ điều hành thật của người bấm để mỗi lượt click vừa đổi sub_id vừa đổi Kênh tự nhiên.
+    """
+    base_ua = sanitize_browser_user_agent(raw_ua)
+    is_ios = "iPhone" in base_ua or "iPad" in base_ua
+    is_android = "Android" in base_ua
+
+    channels = ["facebook", "tiktok", "youtube", "instagram", "other"]
+    chosen = random.choice(channels)
+
+    if chosen == "facebook":
+        referer = random.choice(["https://m.facebook.com/", "https://l.facebook.com/", "https://www.facebook.com/"])
+        if is_ios:
+            ua = f"{base_ua} [FBAN/FBIOS;FBAV/462.0.0.45.109;FBBV/5984123;FBDV/iPhone15,3;FBMD/iPhone;FBSN/iOS;FBSV/17.4;FBSS/3;FBID/phone;FBLC/vi_VN;FBOP/5]"
+        elif is_android:
+            ua = f"{base_ua} [FB_IAB/FB4A;FBAV/460.0.0.38.109;]"
+        else:
+            ua = base_ua
+        return chosen, ua, referer
+
+    if chosen == "tiktok":
+        referer = "https://www.tiktok.com/"
+        if is_ios or is_android:
+            ua = f"{base_ua} musical_ly_2023405010 JsSdk/1.0 NetType/WIFI Channel/AppStore AppName/musical_ly app_version/34.5.1 ByteLocale/vi-VN Region/VN AppId/1180 BytedanceWebview/d8a21c6"
+        else:
+            ua = base_ua
+        return chosen, ua, referer
+
+    if chosen == "youtube":
+        referer = random.choice(["https://m.youtube.com/", "https://www.youtube.com/", "android-app://com.google.android.youtube/"])
+        return chosen, base_ua, referer
+
+    if chosen == "instagram":
+        referer = random.choice(["https://l.instagram.com/", "https://www.instagram.com/"])
+        if is_ios:
+            ua = f"{base_ua} Instagram 330.0.0.38.95 (iPhone15,3; iOS 17_4; vi_VN; vi; scale=3.00; 1179x2556; 592837124)"
+        elif is_android:
+            ua = f"{base_ua} Instagram 330.0.0.40.92 Android (34/14; 480dpi; 1080x2340; samsung; SM-S918B; dm3q; qcom; vi_VN; 592837190)"
+        else:
+            ua = base_ua
+        return chosen, ua, referer
+
+    # Kênh "Khác" (Trình duyệt web độc lập / Google Search)
+    referer = random.choice(["", "https://www.google.com.vn/", "https://www.google.com/"])
+    return "other", base_ua, referer
+
+
 def resolve_shopee_clean_channel(dynamic_aff_url: str, raw_ua: str) -> dict:
     """
-    Gọi s.shopee.vn/an_redir bằng User-Agent trình duyệt thuần (Safari/Chrome, đã xóa sạch dấu vết Zalo/FB/TikTok/YouTube)
-    và không gửi Referer mạng xã hội, giúp Shopee ghi nhận mỗi lượt click có uls_trackid riêng biệt và Kênh = 'Khác'.
+    Gọi s.shopee.vn/an_redir bằng bộ Header xoay vòng ngẫu nhiên 5 kênh (Facebook, TikTok, YouTube, Instagram, Khác - tuyệt đối không có Zalo),
+    giúp Shopee ghi nhận mỗi lượt click có uls_trackid riêng biệt và phân bổ đều Kênh trả về.
     """
-    clean_ua = sanitize_browser_user_agent(raw_ua)
+    _, spoofed_ua, spoofed_referer = build_random_channel_headers(raw_ua)
     req_headers = {
-        "User-Agent": clean_ua,
+        "User-Agent": spoofed_ua,
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7",
         "Cache-Control": "no-cache",
         "Pragma": "no-cache",
     }
+    if spoofed_referer:
+        req_headers["Referer"] = spoofed_referer
+
     try:
         resp = requests.get(dynamic_aff_url, headers=req_headers, allow_redirects=False, timeout=4)
         # Trường hợp Desktop trả về 301/302 Location trực tiếp
@@ -241,7 +299,7 @@ def resolve_shopee_clean_channel(dynamic_aff_url: str, raw_ua: str) -> dict:
 
         http_url = json.loads(f'"{m_http.group(1)}"') if m_http else ""
         deep_link_url = json.loads(f'"{m_deep.group(1)}"') if m_deep else ""
-        evoke_method = int(m_evoke.group(1)) if m_evoke else (1 if ("iPhone" in clean_ua or "iPad" in clean_ua) else 2)
+        evoke_method = int(m_evoke.group(1)) if m_evoke else (1 if ("iPhone" in spoofed_ua or "iPad" in spoofed_ua) else 2)
 
         if http_url or deep_link_url:
             return {
